@@ -68,5 +68,5 @@ def test_discover_website_fallback_to_crawl(tmp_path: Path) -> None:
     ))
 
     assert any(page.url.endswith("page1") for page in report.pages)
-    assert report.progress[0] == "initialized"
+    assert report.progress[0].startswith("project_created:")
     assert report.progress[-1] == "persisted"

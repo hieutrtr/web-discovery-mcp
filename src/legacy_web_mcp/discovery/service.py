@@ -5,7 +5,6 @@ import re
 import urllib.parse
 import xml.etree.ElementTree as ET
 from collections import deque
-from dataclasses import asdict
 from html.parser import HTMLParser
 from pathlib import Path
 from typing import Awaitable, Callable, Iterable
@@ -17,6 +16,7 @@ except ModuleNotFoundError:  # pragma: no cover
 
 from legacy_web_mcp.config import Settings, load_settings
 from legacy_web_mcp.discovery.models import DiscoveredUrl, DiscoveryReport
+from legacy_web_mcp.storage import initialize_project, save_url_inventory
 
 Fetch = Callable[[str], Awaitable[str]]
 
@@ -77,27 +77,6 @@ def make_absolute(root: str, url: str) -> str:
     return urllib.parse.urljoin(root + "/", url)
 
 
-def save_report(report: DiscoveryReport, output_root: Path) -> Path:
-    output_dir = output_root / "discovery"
-    output_dir.mkdir(parents=True, exist_ok=True)
-    file_path = output_dir / "urls.json"
-    data = {
-        "root": report.root_url,
-        "pages": [asdict(page) for page in report.pages],
-        "assets": [asdict(asset) for asset in report.assets],
-    }
-    file_path.write_text(json_dumps(data))
-    report.metadata_path = str(file_path)
-    return file_path
-
-
-def json_dumps(data: dict) -> str:
-    try:
-        import json
-
-        return json.dumps(data, indent=2)
-    except Exception as exc:  # pragma: no cover - shouldn't happen
-        raise RuntimeError("Failed to serialize discovery output") from exc
 
 
 async def fetch_sitemap(root: str, fetch: Fetch) -> list[str]:
@@ -176,8 +155,10 @@ async def discover_website(
     root = normalize_root(url)
     max_depth = max(settings.max_concurrent_browsers - 1, DEFAULT_MAX_DEPTH)
 
+    base_path = Path(output_root) if output_root is not None else Path(settings.analysis_output_root)
+    project = initialize_project(root, base_path=base_path, settings=settings)
     report = DiscoveryReport(root_url=root)
-    report.progress.append("initialized")
+    report.progress.append(f"project_created:{project.project_id}")
 
     sitemap_urls = await fetch_sitemap(root, fetch)
     if sitemap_urls:
@@ -219,7 +200,6 @@ async def discover_website(
                 )
                 seen.add(child)
 
-    output_path = Path(output_root) if output_root else Path(settings.analysis_output_root)
-    save_report(report, output_path)
+    save_url_inventory(project, report)
     report.progress.append("persisted")
     return report
