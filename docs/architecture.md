@@ -116,24 +116,25 @@ graph TB
 
 - **Provider:** None (Local execution only)
 - **Key Services:** N/A - MCP server runs locally in user's development environment
-- **Deployment Regions:** N/A - Local installation via pip/pipx
+- **Deployment Regions:** N/A - Local installation via uv/uvx
 
 ### Technology Stack Table
 
 | Category | Technology | Version | Purpose | Rationale |
 |----------|------------|---------|---------|-----------|
 | **Language** | Python | 3.11+ | Primary development language | Enhanced async capabilities, performance improvements, required for modern FastMCP |
-| **Framework** | FastMCP | latest | MCP server framework | Official Anthropic framework for MCP protocol implementation |
-| **Browser Engine** | Playwright | 1.40+ | Web automation and analysis | Cross-browser support, network monitoring, reliable automation APIs |
+| **Framework** | FastMCP | 2.12.0 | MCP server framework | Official Anthropic framework for MCP protocol implementation |
+| **Browser Engine** | Playwright | 1.55.0 | Web automation and analysis | Cross-browser support, network monitoring, reliable automation APIs |
 | **Async Runtime** | AsyncIO | Built-in | Concurrent processing | Native Python async support for browser sessions and LLM calls |
-| **HTTP Client** | aiohttp | 3.9+ | LLM API integration | Async HTTP client for concurrent API calls with proper timeout handling |
-| **Configuration** | pydantic-settings | 2.1+ | Environment configuration | Type-safe configuration management with environment variable support |
-| **Logging** | structlog | 23.2+ | Structured logging | JSON-structured logs for debugging and monitoring |
-| **Testing** | pytest | 7.4+ | Test framework | Comprehensive testing with async support and browser automation |
-| **Testing - Async** | pytest-asyncio | 0.21+ | Async test support | Native async test execution for browser and LLM testing |
-| **Packaging** | setuptools | 68+ | Package distribution | Standard Python packaging for pip/pipx installation |
-| **Type Checking** | mypy | 1.7+ | Static type analysis | Type safety for maintainable codebase |
-| **Code Quality** | ruff | 0.1+ | Linting and formatting | Fast Python linter with formatting capabilities |
+| **HTTP Client** | aiohttp | 3.12.15 | LLM API integration | Async HTTP client for concurrent API calls with proper timeout handling |
+| **Configuration** | pydantic-settings | 2.10.1 | Environment configuration | Type-safe configuration management with environment variable support |
+| **Logging** | structlog | 25.4.0 | Structured logging | JSON-structured logs for debugging and monitoring |
+| **Testing** | pytest | 8.4.2 | Test framework | Comprehensive testing with async support and browser automation |
+| **Testing - Async** | pytest-asyncio | 1.2.0 | Async test support | Native async test execution for browser and LLM testing |
+| **Package Manager** | uv | 0.1+ | Package management | Modern Python package manager for fast installs and execution |
+| **Packaging** | setuptools | 80.9.0 | Package distribution | Standard Python packaging for uv/uvx installation and execution |
+| **Type Checking** | mypy | 1.18.1 | Static type analysis | Type safety for maintainable codebase |
+| **Code Quality** | ruff | 0.13.0 | Linting and formatting | Fast Python linter with formatting capabilities |
 
 ## Data Models
 
@@ -550,8 +551,9 @@ legacy-web-analysis-mcp/
 
 ### Deployment Strategy
 
-- **Strategy:** Local installation via pip/pipx
+- **Strategy:** Local installation and execution via uv/uvx for immediate usage without virtual environment setup
 - **CI/CD Platform:** GitHub Actions for testing and package publishing
+- **Execution Model:** `uvx legacy-web-mcp` for direct command-line execution
 - **Pipeline Configuration:** `.github/workflows/test.yml`, `.github/workflows/publish.yml`
 
 ### Environments
@@ -563,12 +565,12 @@ legacy-web-analysis-mcp/
 ### Environment Promotion Flow
 
 ```
-Development → Testing (GitHub Actions) → PyPI Package Release → User Installation
+Development → Testing (GitHub Actions) → PyPI Package Release → User Installation via uv/uvx
 ```
 
 ### Rollback Strategy
 
-- **Primary Method:** pip/pipx uninstall and reinstall previous version
+- **Primary Method:** uv/uvx reinstall with version specification
 - **Trigger Conditions:** Critical bugs, compatibility issues with AI environments
 - **Recovery Time Objective:** < 5 minutes for user to rollback to previous version
 
@@ -751,8 +753,9 @@ Development → Testing (GitHub Actions) → PyPI Package Release → User Insta
 After completing this architecture document, the following actions should be taken:
 
 1. **Development Setup:**
-   - Initialize Python 3.11 project with pyproject.toml configuration
-   - Set up development environment with ruff, mypy, and pytest
+   - Initialize Python 3.11 project with pyproject.toml configuration for uv/uvx compatibility
+   - Set up development environment with uv for dependency management
+   - Configure project for uvx execution with proper entry points
    - Install and configure Playwright browsers for testing
 
 2. **Core Implementation:**
@@ -766,8 +769,8 @@ After completing this architecture document, the following actions should be tak
    - Set up browser automation tests with headless browsers
 
 4. **Documentation:**
-   - Create comprehensive README with installation instructions
+   - Create comprehensive README with uvx installation and execution instructions
    - Document environment variable configuration
-   - Provide usage examples for AI development environments
+   - Provide usage examples for AI development environments with uvx commands
 
 The architecture is optimized for AI-driven development with clear module boundaries, comprehensive type hints, and detailed specifications for consistent implementation across all components.
