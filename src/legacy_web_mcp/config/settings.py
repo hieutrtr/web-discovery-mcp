@@ -27,6 +27,7 @@ class Settings:
     default_browser_engine: str = "chromium"
     max_concurrent_browsers: int = 3
     analysis_output_root: str = "./analysis-output"
+    headless: bool = True
     config_file: Path | None = None
 
     def sanitized(self) -> Dict[str, Any]:
@@ -78,15 +79,20 @@ def _collect_sources(
         "default_browser_engine": env.get("DEFAULT_BROWSER_ENGINE"),
         "max_concurrent_browsers": env.get("MAX_CONCURRENT_BROWSERS"),
         "analysis_output_root": env.get("ANALYSIS_OUTPUT_ROOT"),
+        "headless": env.get("HEADLESS"),
     }
     for key, value in env_overrides.items():
         if value is not None and value != "":
             if key == "max_concurrent_browsers":
                 data[key] = int(value)
+            elif key == "headless":
+                data[key] = str(value).lower() not in {"false", "0", "no"}
             else:
                 data[key] = value
-    if 'max_concurrent_browsers' in data:
-        data['max_concurrent_browsers'] = int(data['max_concurrent_browsers'])
+    if "max_concurrent_browsers" in data:
+        data["max_concurrent_browsers"] = int(data["max_concurrent_browsers"])
+    if "headless" in data and not isinstance(data["headless"], bool):
+        data["headless"] = str(data["headless"]).lower() not in {"false", "0", "no"}
     return data, resolved_path
 
 

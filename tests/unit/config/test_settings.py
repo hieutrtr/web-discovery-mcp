@@ -12,12 +12,14 @@ def test_load_settings_applies_env_overrides(tmp_path: Path) -> None:
     env = {
         "OPENAI_API_KEY": "env-openai",
         "STEP1_MODEL": "env-model",
+        "HEADLESS": "false",
         "MCP_CONFIG_FILE": str(config_file),
     }
     settings = load_settings(env=env)
     assert settings.openai_api_key == "env-openai"
     assert settings.step1_model == "env-model"
     assert settings.max_concurrent_browsers == 5
+    assert settings.headless is False
     assert settings.analysis_output_root == "./custom"
     assert settings.config_file == config_file
 
@@ -47,4 +49,5 @@ def test_show_config_redacts_secrets(tmp_path: Path) -> None:
     assert safe["openai_api_key"] == "***redacted***"
     config_report = asyncio.run(show_config(env=env, config_path=report))
     assert config_report["settings"]["anthropic_api_key"] == "***redacted***"
+    assert config_report["settings"]["headless"] in {True, False}
     assert config_report["validation"]["valid"]

@@ -10,3 +10,4 @@ fallback_model: "gemini-1.5-pro"
 default_browser_engine: "chromium"
 max_concurrent_browsers: 3
 analysis_output_root: "./analysis-output"
+headless: true
