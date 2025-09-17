@@ -1,7 +1,39 @@
-.bmad-core/
-.claude/
-.cursor/
-.gemini/
-# BMAD (local only)
-.bmad-core/
-.bmad-*/
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pytest_cache/
+*.mypy_cache/
+*.ruff_cache/
+
+# Virtual environments
+.env
+.venv
+venv/
+
+# IDE settings
+.vscode/
+.idea/
+*.swp
+
+# Playwright
+playwright-report/
+playwright/.cache/
+
+# MCP analysis outputs
+analysis-output/
+project-output/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment files
+.env.local
+.envrc
+
+# Coverage / reports
+htmlcov/
+coverage.xml
+.pytest_cache/
