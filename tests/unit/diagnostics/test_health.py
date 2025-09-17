@@ -11,9 +11,6 @@ def test_validate_configuration_reports_missing_keys() -> None:
         "OPENAI_API_KEY",
         "ANTHROPIC_API_KEY",
         "GEMINI_API_KEY",
-        "STEP1_MODEL",
-        "STEP2_MODEL",
-        "FALLBACK_MODEL",
     }
     assert report["remediation"]
 

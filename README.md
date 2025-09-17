@@ -39,6 +39,25 @@ produce documentation ready for modernization efforts.
 ## Repository Layout
 
 - `src/legacy_web_mcp/` – Production source code, following the modular monolith structure
+
+## Configuration
+
+The server reads configuration from environment variables and optional configuration files.
+
+1. Populate `.env` using `.env.template`.
+2. (Optional) Copy `templates/config.example.yaml` and set `MCP_CONFIG_FILE` to its path.
+3. Run the diagnostics `show_config` tool (available via MCP) or execute the helper below to review
+   the sanitized configuration:
+
+```python
+from legacy_web_mcp.config import show_config
+import asyncio
+
+print(asyncio.run(show_config()))
+```
+
+Sensitive values are redacted in the output, and validation details identify any missing
+configuration items.
 - `tests/` – Unit and integration test suites
 - `docs/` – PRD, architecture guidance, developer standards, and story documents
 - `scripts/` – Utility scripts (if needed)

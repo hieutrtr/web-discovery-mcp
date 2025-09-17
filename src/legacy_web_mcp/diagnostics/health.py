@@ -8,6 +8,19 @@ import resource
 from datetime import datetime, timezone
 from typing import Any, Dict, Mapping
 
+from pathlib import Path
+
+from legacy_web_mcp.config import load_settings, validate_settings
+
+FIELD_ENV_MAPPING = {
+    "openai_api_key": "OPENAI_API_KEY",
+    "anthropic_api_key": "ANTHROPIC_API_KEY",
+    "gemini_api_key": "GEMINI_API_KEY",
+    "step1_model": "STEP1_MODEL",
+    "step2_model": "STEP2_MODEL",
+    "fallback_model": "FALLBACK_MODEL",
+}
+
 try:  # pragma: no cover - structlog may not be installed during early dev
     import structlog
 
@@ -17,15 +30,6 @@ except ModuleNotFoundError:  # pragma: no cover
 
     logging.basicConfig(level=logging.INFO)
     logger = logging.getLogger(__name__)
-
-REQUIRED_ENV_VARS = [
-    "OPENAI_API_KEY",
-    "ANTHROPIC_API_KEY",
-    "GEMINI_API_KEY",
-    "STEP1_MODEL",
-    "STEP2_MODEL",
-    "FALLBACK_MODEL",
-]
 
 
 def _module_available(module_name: str) -> tuple[bool, str | None]:
@@ -139,16 +143,23 @@ async def system_status() -> Dict[str, Any]:
     return status
 
 
-def validate_configuration(env: Mapping[str, str] | None = None) -> Dict[str, Any]:
+def validate_configuration(
+    env: Mapping[str, str] | None = None, config_path: str | Path | None = None
+) -> Dict[str, Any]:
     """Ensure mandatory environment configuration is present."""
-    env = dict(os.environ if env is None else env)
-    missing = [key for key in REQUIRED_ENV_VARS if not env.get(key)]
+    settings = load_settings(env=env, config_path=config_path)
+    validation = validate_settings(settings)
+    missing_fields: list[str] = []
+    for error in validation["errors"]:
+        if error.get("code") == "CONFIG_MISSING":
+            missing_fields = [FIELD_ENV_MAPPING.get(field, field) for field in error.get("fields", [])]
     report = {
-        "valid": not missing,
-        "missing": missing,
-        "remediation": "Populate missing environment variables in .env or deployment settings."
-        if missing
-        else None,
+        "valid": validation["valid"],
+        "missing": missing_fields,
+        "errors": validation["errors"],
+        "remediation": None
+        if validation["valid"]
+        else "Populate missing values in .env or the configuration file.",
     }
-    logger.info("configuration_validation", valid=report["valid"], missing=len(missing))
+    logger.info("configuration_validation", valid=report["valid"], missing=len(missing_fields))
     return report

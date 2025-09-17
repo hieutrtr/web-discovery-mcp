@@ -1,0 +1,12 @@
+# Example configuration for the Legacy Web MCP Server
+# Copy this file to your project root and set MCP_CONFIG_FILE to its path
+
+openai_api_key: ""
+anthropic_api_key: ""
+gemini_api_key: ""
+step1_model: "gpt-4o-mini"
+step2_model: "claude-3-haiku"
+fallback_model: "gemini-1.5-pro"
+default_browser_engine: "chromium"
+max_concurrent_browsers: 3
+analysis_output_root: "./analysis-output"
