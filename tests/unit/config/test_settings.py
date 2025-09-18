@@ -7,13 +7,14 @@ from legacy_web_mcp.config import load_settings, show_config, validate_settings
 def test_load_settings_applies_env_overrides(tmp_path: Path) -> None:
     config_file = tmp_path / "config.json"
     config_file.write_text(
-        '{"step1_model": "config-model", "max_concurrent_browsers": 5, "analysis_output_root": "./custom"}'
+        '{"step1_model": "config-model", "max_concurrent_browsers": 5, "analysis_output_root": "./custom", "monthly_budget_usd": 25.5}'
     )
     env = {
         "OPENAI_API_KEY": "env-openai",
         "STEP1_MODEL": "env-model",
         "HEADLESS": "false",
         "MCP_CONFIG_FILE": str(config_file),
+        "MONTHLY_BUDGET_USD": "30",
     }
     settings = load_settings(env=env)
     assert settings.openai_api_key == "env-openai"
@@ -22,6 +23,7 @@ def test_load_settings_applies_env_overrides(tmp_path: Path) -> None:
     assert settings.headless is False
     assert settings.analysis_output_root == "./custom"
     assert settings.config_file == config_file
+    assert settings.monthly_budget_usd == 30.0
 
 
 def test_validate_settings_reports_missing_keys() -> None:

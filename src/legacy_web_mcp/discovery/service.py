@@ -16,7 +16,6 @@ except ModuleNotFoundError:  # pragma: no cover
 
 from legacy_web_mcp.config import Settings, load_settings
 from legacy_web_mcp.discovery.models import DiscoveredUrl, DiscoveryReport
-from legacy_web_mcp.storage import initialize_project, save_url_inventory
 
 Fetch = Callable[[str], Awaitable[str]]
 
@@ -154,6 +153,8 @@ async def discover_website(
     settings = settings or load_settings()
     root = normalize_root(url)
     max_depth = max(settings.max_concurrent_browsers - 1, DEFAULT_MAX_DEPTH)
+
+    from legacy_web_mcp.storage import initialize_project, save_url_inventory
 
     base_path = Path(output_root) if output_root is not None else Path(settings.analysis_output_root)
     project = initialize_project(root, base_path=base_path, settings=settings)
