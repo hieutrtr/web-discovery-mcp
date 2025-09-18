@@ -3,27 +3,31 @@ from __future__ import annotations
 import asyncio
 import json
 from collections import deque
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
+from time import perf_counter
 from typing import Awaitable, Callable, Deque, Dict, List, Mapping, Optional
 
-from legacy_web_mcp.analysis import collect_page_analysis
+from legacy_web_mcp.analysis import PageAnalysis, collect_page_analysis
 from legacy_web_mcp.config import Settings, load_settings
+from legacy_web_mcp.documentation import DocumentationGenerator
 from legacy_web_mcp.network import NetworkTrafficRecorder
 from legacy_web_mcp.navigation import navigate_to_page
+from legacy_web_mcp.progress import (
+    CheckpointManager,
+    ProgressSnapshot,
+    ProgressTracker,
+)
 from legacy_web_mcp.storage import ProjectPaths
 
 NavigateCallable = Callable[[str, ProjectPaths], Awaitable[Mapping[str, Path | str | float | List[str]]]]
 FetchHtml = Callable[[str], Awaitable[str]]
 
 
-@dataclass
+@dataclass(slots=True)
 class WorkflowProgress:
-    completed: List[str] = field(default_factory=list)
-    failed: List[Dict[str, str]] = field(default_factory=list)
-    skipped: List[str] = field(default_factory=list)
-    current: Optional[str] = None
-    checkpoint_path: Optional[Path] = None
+    snapshot: ProgressSnapshot
+    checkpoint_path: Optional[Path]
 
 
 class SequentialNavigationWorkflow:
@@ -34,48 +38,75 @@ class SequentialNavigationWorkflow:
         *,
         settings: Settings | None = None,
         fetch_html: FetchHtml | None = None,
+        resume: bool = True,
+        tracker: ProgressTracker | None = None,
+        checkpoints: CheckpointManager | None = None,
+        documentation: DocumentationGenerator | None = None,
     ) -> None:
         self.project = project
         self.settings = settings or load_settings()
-        self._queue: Deque[str] = deque(urls)
+        self.progress_tracker = tracker or ProgressTracker(project)
+        self.checkpoint_manager = checkpoints or CheckpointManager(project)
+        self.documentation_generator = documentation or DocumentationGenerator(project)
         self._initial_urls = list(urls)
+        self.progress_tracker.register_urls(urls)
+        self._queue: Deque[str] = deque(urls)
         self._paused = asyncio.Event()
         self._paused.set()
-        self._progress = WorkflowProgress()
-        self._checkpoint_file = project.root_path / "progress.json"
         self._fetch_html = fetch_html
+        if resume:
+            self._attempt_resume()
+        else:
+            self._persist_state(current_url=None)
 
     def pause(self) -> None:
         self._paused.clear()
+        current = self.progress_tracker.snapshot().current_url
+        self._persist_state(current_url=current)
 
     def resume(self) -> None:
         self._paused.set()
 
+    def manual_checkpoint(self) -> Path:
+        snapshot = self.progress_tracker.snapshot()
+        return self._persist_state(current_url=snapshot.current_url)
+
+    def cleanup_checkpoints(self, retain: int | None = None) -> None:
+        self.checkpoint_manager.prune(retain)
+
     def skip(self, url: str) -> None:
         try:
             self._queue.remove(url)
-            self._progress.skipped.append(url)
-            self._write_checkpoint()
+            self.progress_tracker.mark_skipped(url)
+            self._persist_state(current_url=None)
         except ValueError:
             pass
 
     async def run(self) -> WorkflowProgress:
+        checkpoint_path: Path | None = None
         while self._queue:
             await self._paused.wait()
             url = self._queue.popleft()
-            self._progress.current = url
-            self._write_checkpoint()
+            self.progress_tracker.mark_analyzing(url)
+            checkpoint_path = self._persist_state(current_url=url)
             try:
-                await self._process_url(url)
-                self._progress.completed.append(url)
+                duration, analysis = await self._process_url(url)
+                self.progress_tracker.mark_completed(url, duration)
+                self.documentation_generator.update_page(
+                    page=analysis,
+                    summary=None,
+                    feature=None,
+                    progress=self.progress_tracker.snapshot(),
+                )
             except Exception as exc:  # pragma: no cover - defensive logging
-                self._progress.failed.append({"url": url, "error": str(exc)})
+                self.progress_tracker.mark_failed(url, str(exc))
+                checkpoint_path = self._persist_state(current_url=None)
             finally:
-                self._progress.current = None
-                self._write_checkpoint()
-        return self._progress
+                checkpoint_path = self._persist_state(current_url=None)
+        snapshot = self.progress_tracker.snapshot()
+        return WorkflowProgress(snapshot=snapshot, checkpoint_path=checkpoint_path)
 
-    async def _process_url(self, url: str) -> None:
+    async def _process_url(self, url: str) -> tuple[float, PageAnalysis]:
         recorder = NetworkTrafficRecorder(url)
 
         async def fetch_with_record(target_url: str) -> str:
@@ -85,6 +116,7 @@ class SequentialNavigationWorkflow:
             recorder.record(url=target_url, method="GET", status=200)
             return html
 
+        started = perf_counter()
         capture = await navigate_to_page(
             url,
             self.project,
@@ -104,6 +136,8 @@ class SequentialNavigationWorkflow:
             network_report=recorder.export(),
         )
         self._progress_log_entry(url, analysis.analysis_path)
+        duration = perf_counter() - started
+        return duration, analysis
 
     def _progress_log_entry(self, url: str, analysis_path: Path) -> None:
         log_dir = self.project.root_path / "logs"
@@ -116,25 +150,23 @@ class SequentialNavigationWorkflow:
         with log_file.open("a", encoding="utf-8") as handle:
             handle.write(json.dumps(entry) + "\n")
 
-    def _write_checkpoint(self) -> None:
-        data = {
-            "queue": list(self._queue),
-            "completed": self._progress.completed,
-            "failed": self._progress.failed,
-            "skipped": self._progress.skipped,
-            "current": self._progress.current,
-            "initial_urls": self._initial_urls,
-        }
-        self._checkpoint_file.write_text(json.dumps(data, indent=2))
-        self._progress.checkpoint_path = self._checkpoint_file
+    def _persist_state(self, current_url: str | None) -> Path:
+        checkpoint = self.checkpoint_manager.write(
+            queue=list(self._queue),
+            tracker_state=self.progress_tracker.to_state(),
+            current_url=current_url,
+        )
+        return checkpoint
 
-    def load_checkpoint(self) -> None:
-        if not self._checkpoint_file.exists():
+    def _attempt_resume(self) -> None:
+        state = self.checkpoint_manager.load_latest()
+        if state is None:
             return
-        data = json.loads(self._checkpoint_file.read_text())
-        self._queue = deque(data.get("queue", []))
-        self._progress.completed = data.get("completed", [])
-        self._progress.failed = data.get("failed", [])
-        self._progress.skipped = data.get("skipped", [])
-        self._progress.current = data.get("current")
-        self._progress.checkpoint_path = self._checkpoint_file
+        self.progress_tracker.restore(state.tracker_state)
+        rebuilt_queue: List[str] = []
+        if state.current_url:
+            rebuilt_queue.append(state.current_url)
+        rebuilt_queue.extend(state.queue)
+        if rebuilt_queue:
+            self._queue = deque(rebuilt_queue)
+        self.progress_tracker.write_snapshot()

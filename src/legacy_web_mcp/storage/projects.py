@@ -26,6 +26,14 @@ class ProjectPaths:
     analysis_dir: Path
     reports_dir: Path
     metadata_file: Path
+    checkpoints_dir: Path
+    docs_root: Path
+    docs_web_dir: Path
+    docs_progress_dir: Path
+    docs_pages_dir: Path
+    docs_reports_dir: Path
+    docs_metadata_file: Path
+    docs_master_report: Path
 
 
 @dataclass(slots=True)
@@ -66,7 +74,24 @@ def initialize_project(
     discovery = project_path / DISCOVERY_DIR
     analysis = project_path / ANALYSIS_DIR
     reports = project_path / REPORTS_DIR
-    for directory in (project_path, discovery, analysis, reports):
+    checkpoints = project_path / "checkpoints"
+    docs_root = project_path / "docs"
+    docs_web = docs_root / "web_discovery"
+    docs_progress = docs_web / "progress"
+    docs_pages = docs_web / "pages"
+    docs_reports = docs_web / "reports"
+    for directory in (
+        project_path,
+        discovery,
+        analysis,
+        reports,
+        checkpoints,
+        docs_root,
+        docs_web,
+        docs_progress,
+        docs_pages,
+        docs_reports,
+    ):
         directory.mkdir(parents=True, exist_ok=True)
 
     metadata = {
@@ -78,7 +103,39 @@ def initialize_project(
     }
     metadata_file = project_path / PROJECT_METADATA_FILE
     metadata_file.write_text(json.dumps(metadata, indent=2))
-    return ProjectPaths(project_id, project_path, discovery, analysis, reports, metadata_file)
+    docs_metadata_file = docs_web / "analysis-metadata.json"
+    docs_metadata_file.write_text(
+        json.dumps(
+            {
+                "project_id": project_id,
+                "root_url": root_url,
+                "generated_at": datetime.now(timezone.utc).isoformat(),
+                "completed_pages": 0,
+                "total_pages": 0,
+                "status": "pending",
+            },
+            indent=2,
+        )
+    )
+    docs_master_report = docs_web / "analysis-report.md"
+    if not docs_master_report.exists():
+        docs_master_report.write_text("# Legacy Web Analysis Report\n\n", encoding="utf-8")
+    return ProjectPaths(
+        project_id,
+        project_path,
+        discovery,
+        analysis,
+        reports,
+        metadata_file,
+        checkpoints,
+        docs_root,
+        docs_web,
+        docs_progress,
+        docs_pages,
+        docs_reports,
+        docs_metadata_file,
+        docs_master_report,
+    )
 
 
 def save_url_inventory(project: ProjectPaths, report: DiscoveryReport) -> Path:

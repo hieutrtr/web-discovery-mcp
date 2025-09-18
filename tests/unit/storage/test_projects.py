@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 from legacy_web_mcp.config import Settings
@@ -27,8 +28,14 @@ def test_initialize_project_creates_structure(tmp_path: Path) -> None:
     assert project.discovery_dir.exists()
     assert project.analysis_dir.exists()
     assert project.reports_dir.exists()
+    assert project.checkpoints_dir.exists()
+    assert project.docs_web_dir.exists()
+    assert project.docs_pages_dir.exists()
+    assert project.docs_master_report.exists()
     metadata = (project.root_path / "metadata.json").read_text()
     assert "example.com" in metadata
+    docs_metadata = json.loads(project.docs_metadata_file.read_text())
+    assert docs_metadata["status"] == "pending"
 
 
 def test_save_url_inventory_updates_metadata(tmp_path: Path) -> None:
