@@ -28,6 +28,7 @@ class Settings:
     max_concurrent_browsers: int = 3
     analysis_output_root: str = "./analysis-output"
     headless: bool = True
+    monthly_budget_usd: float | None = None
     config_file: Path | None = None
 
     def sanitized(self) -> Dict[str, Any]:
@@ -80,6 +81,7 @@ def _collect_sources(
         "max_concurrent_browsers": env.get("MAX_CONCURRENT_BROWSERS"),
         "analysis_output_root": env.get("ANALYSIS_OUTPUT_ROOT"),
         "headless": env.get("HEADLESS"),
+        "monthly_budget_usd": env.get("MONTHLY_BUDGET_USD"),
     }
     for key, value in env_overrides.items():
         if value is not None and value != "":
@@ -87,12 +89,16 @@ def _collect_sources(
                 data[key] = int(value)
             elif key == "headless":
                 data[key] = str(value).lower() not in {"false", "0", "no"}
+            elif key == "monthly_budget_usd":
+                data[key] = float(value)
             else:
                 data[key] = value
     if "max_concurrent_browsers" in data:
         data["max_concurrent_browsers"] = int(data["max_concurrent_browsers"])
     if "headless" in data and not isinstance(data["headless"], bool):
         data["headless"] = str(data["headless"]).lower() not in {"false", "0", "no"}
+    if "monthly_budget_usd" in data and not isinstance(data["monthly_budget_usd"], (float, int)):
+        data["monthly_budget_usd"] = float(data["monthly_budget_usd"])
     return data, resolved_path
 
 

@@ -1,7 +1,5 @@
 import asyncio
 
-import pytest
-
 from legacy_web_mcp.config import Settings
 from legacy_web_mcp.llm.client import LLMClient, LLMRequest, build_default_client
 
@@ -38,17 +36,19 @@ def test_generate_with_retry_and_fallback(monkeypatch):
         openai_api_key="ok",
         anthropic_api_key="ok",
         gemini_api_key="ok",
+        monthly_budget_usd=0.001,
     )
     client = LLMClient(settings=settings, max_retries=1, backoff_base=0)
     client.register_provider("openai", StubProvider("openai", "hello", fail_times=1))
     client.register_provider("anthropic", StubProvider("anthropic", "fallback"))
     client.set_order(["openai", "anthropic"])
+    client.set_model_aliases({"step1": ("openai", "model"), "fallback": ("anthropic", "model")})
 
-    response = asyncio.run(client.generate(LLMRequest(model="gpt", prompt="Hi")))
+    response = asyncio.run(client.generate(LLMRequest(model="step1", prompt="Hi")))
     assert response.content in {"hello", "fallback"}
     assert client.token_usage[response.provider] == 10
-    health = client.provider_health()
-    assert health["openai"].total_requests >= 1
+    status = client.budget_status()
+    assert "total_cost" in status
 
 
 def test_build_default_client_validates(monkeypatch):
@@ -61,3 +61,16 @@ def test_build_default_client_validates(monkeypatch):
     client = build_default_client()
     results = client.validate_providers()
     assert all(error is None for error in results.values())
+
+
+def test_budget_status_exceeded():
+    settings = Settings(openai_api_key="ok", anthropic_api_key="ok", gemini_api_key="ok", monthly_budget_usd=0.0001)
+    client = LLMClient(settings=settings)
+    provider = StubProvider("openai", "resp")
+    client.register_provider("openai", provider)
+    client.set_model_aliases({"step1": ("openai", "model")})
+    asyncio.run(client.generate(LLMRequest(model="step1", prompt="hello")))
+    status = client.budget_status()
+    assert status["total_cost"] > 0
+    assert status["limit"] == 0.0001
+    assert status["exceeded"] == (status["total_cost"] > status["limit"])

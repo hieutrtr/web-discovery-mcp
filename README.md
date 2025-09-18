@@ -44,7 +44,7 @@ produce documentation ready for modernization efforts.
 
 The server reads configuration from environment variables and optional configuration files.
 
-1. Populate `.env` using `.env.template`. Set `HEADLESS=false` if you need a visible browser for debugging.
+1. Populate `.env` using `.env.template`. Set `HEADLESS=false` if you need a visible browser for debugging. Use `MONTHLY_BUDGET_USD` to configure LLM spending alerts.
 2. (Optional) Copy `templates/config.example.yaml` and set `MCP_CONFIG_FILE` to its path.
 3. Run the diagnostics `show_config` tool (available via MCP) or execute the helper below to review
    the sanitized configuration:

@@ -11,3 +11,4 @@ default_browser_engine: "chromium"
 max_concurrent_browsers: 3
 analysis_output_root: "./analysis-output"
 headless: true
+monthly_budget_usd: 100.0
