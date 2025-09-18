@@ -1,8 +1,36 @@
 schema: 1
 story: '1.4'
 gate: PASS
-status_reason: 'Story documentation reviewed; ready for implementation.'
-reviewer: 'Quinn'
+status_reason: Story documentation reviewed; ready for implementation.
+reviewer: Quinn
 updated: '2025-09-17T16:05:46+00:00'
 top_issues: []
-waiver: { active: false }
+waiver:
+  active: false
+trace:
+  totals:
+    requirements: 7
+    full: 0
+    partial: 0
+    none: 7
+  planning_ref: docs/qa/assessments/1.4-test-design-20250918.md
+  uncovered:
+  - ac: AC1
+    reason: No automated tests implemented yet; planned scenarios 1.4-UNIT-001/1.4-INT-001
+      pending.
+  - ac: AC2
+    reason: Sitemap parsing tests not yet implemented; scenarios 1.4-UNIT-002/003
+      and 1.4-INT-002 pending.
+  - ac: AC3
+    reason: Robots parsing/enforcement tests pending (1.4-UNIT-004, 1.4-INT-003).
+  - ac: AC4
+    reason: Fallback crawler integration test 1.4-INT-004 pending.
+  - ac: AC5
+    reason: URL categorization unit/integration tests (1.4-UNIT-005, 1.4-INT-005)
+      pending.
+  - ac: AC6
+    reason: Inventory serialization/persistence tests not in place (1.4-UNIT-006,
+      1.4-INT-006).
+  - ac: AC7
+    reason: Progress notification tests absent (1.4-INT-007, 1.4-E2E-001).
+  notes: See docs/qa/assessments/1.4-trace-20250918.md for Given-When-Then mappings.

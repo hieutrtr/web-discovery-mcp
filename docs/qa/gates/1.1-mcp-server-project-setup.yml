@@ -42,3 +42,24 @@ recommendations:
     refs:
     - tests/unit/test_server.py
 expires: '2025-10-02T15:40:30Z'
+trace:
+  totals:
+    requirements: 6
+    full: 1
+    partial: 2
+    none: 3
+  planning_ref: docs/qa/assessments/1.1-test-design-20250918.md
+  uncovered:
+  - ac: AC1
+    reason: Only manual verification of package layout; automated guard pending (see
+      test scenario 1.1-UNIT-001).
+  - ac: AC3
+    reason: Tooling commands verified manually; add integration smoke to automate
+      (scenario 1.1-INT-003).
+  - ac: AC4
+    reason: No automated check for .gitignore / README contents.
+  - ac: AC5
+    reason: CI workflow not validated in automated tests (scenario 1.1-INT-005).
+  - ac: AC6
+    reason: Environment template keys lack unit test (scenario 1.1-UNIT-003).
+  notes: See docs/qa/assessments/1.1-trace-20250918.md for Given-When-Then mappings.
