@@ -117,6 +117,25 @@ class LLMClient:
             alias: mapping for alias, mapping in aliases.items() if mapping[0] in self.providers
         }
 
+    def estimate_cost(
+        self,
+        model_alias: str,
+        *,
+        prompt_tokens: int,
+        completion_tokens: int = 0,
+    ) -> float:
+        total_tokens = max(prompt_tokens + completion_tokens, 0)
+        provider_name, model_name = self.model_aliases.get(model_alias, (None, model_alias))
+        if provider_name is None and self.order:
+            provider_name = self.order[0]
+        provider = self.providers.get(provider_name) if provider_name else None
+        if provider is None:
+            return round(total_tokens * 0.00002, 6)
+        if isinstance(provider, BaseProvider):
+            return provider._estimate_cost(total_tokens)
+        # Fallback estimate when provider type is custom and doesn't expose cost calcs
+        return round(total_tokens * 0.00002, 6)
+
     async def generate(
         self,
         request: LLMRequest,
