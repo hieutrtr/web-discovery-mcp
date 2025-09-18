@@ -1,0 +1,69 @@
+[project]
+name = "legacy-web-mcp"
+version = "0.1.0"
+description = "Legacy Web Application Analysis MCP server"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [{ name = "Legacy Web MCP Team" }]
+license = { text = "MIT" }
+keywords = ["mcp", "fastmcp", "legacy", "web", "analysis"]
+dependencies = [
+    "fastmcp==2.12.0",
+    "playwright==1.55.0",
+    "aiohttp==3.12.15",
+    "pydantic-settings==2.10.1",
+    "structlog==25.4.0",
+    "tenacity==9.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff==0.13.0",
+    "mypy==1.18.1",
+    "pytest==8.4.2",
+    "pytest-asyncio==1.2.0",
+    "bandit==1.7.9",
+]
+
+[project.scripts]
+legacy-web-mcp = "legacy_web_mcp.cli:main"
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "ASYNC", "UP"]
+ignore = ["B008"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_unused_ignores = true
+warn_unreachable = true
+show_error_codes = true
+mypy_path = ["src"]
+plugins = []
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+pythonpath = ["src"]
+addopts = "-q"
+
+[tool.uv]
+dev-dependencies = [
+    "ruff==0.13.0",
+    "mypy==1.18.1",
+    "pytest==8.4.2",
+    "pytest-asyncio==1.2.0",
+    "bandit==1.7.9",
+]
