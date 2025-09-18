@@ -5,6 +5,7 @@ from typing import Any
 import pytest
 from fastmcp import FastMCP
 
+from legacy_web_mcp.config import validator
 from legacy_web_mcp.mcp import diagnostics
 
 
@@ -86,6 +87,28 @@ def test_collect_system_status_snapshot() -> None:
     snapshot = diagnostics._collect_system_status()
     assert "timestamp" in snapshot
     assert snapshot["active_tasks"] >= 0
+
+
+@pytest.mark.asyncio
+async def test_env_validation_missing_keys_returns_remediation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    issues = validator.validate_env_vars(["OPENAI_API_KEY"])
+    summary = validator.summarize_env_validation(["OPENAI_API_KEY"])
+
+    assert issues and issues[0].key == "OPENAI_API_KEY"
+    assert summary == {
+        "status": "warning",
+        "details": [
+            {
+                "key": "OPENAI_API_KEY",
+                "remediation": (
+                    "Set the OPENAI_API_KEY environment variable or update .env.template"
+                ),
+            }
+        ],
+    }
 
 
 @pytest.mark.asyncio

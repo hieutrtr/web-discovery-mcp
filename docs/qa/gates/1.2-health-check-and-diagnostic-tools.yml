@@ -1,8 +1,78 @@
 schema: 1
 story: '1.2'
-gate: PASS
-status_reason: 'Story documentation reviewed; ready for implementation.'
-reviewer: 'Quinn'
-updated: '2025-09-17T16:05:46+00:00'
-top_issues: []
-waiver: { active: false }
+story_title: Health Check and Diagnostic Tools
+gate: FAIL
+status_reason: Env validator crashes when keys missing; diagnostics fail to provide
+  remediation guidance.
+reviewer: Quinn (Test Architect)
+updated: '2025-09-18T16:41:59.654251+00:00'
+top_issues:
+- id: TECH-ENV-001
+  description: summarize_env_validation uses issue.__dict__ on slots dataclass, raising
+    AttributeError when env vars missing.
+  severity: high
+  suggested_owner: dev
+  refs:
+  - src/legacy_web_mcp/config/validator.py:37
+  - src/legacy_web_mcp/mcp/diagnostics.py:157
+waiver:
+  active: false
+quality_score: 60
+trace:
+  totals:
+    requirements: 6
+    full: 4
+    partial: 0
+    none: 2
+  planning_ref: docs/qa/assessments/1.2-test-design-20250918.md
+  uncovered:
+  - ac: AC5
+    reason: summarize_env_validation raises AttributeError when env vars missing due
+      to slots serialization bug.
+  - ac: AC6
+    reason: Same bug prevents remediation messaging.
+  notes: See docs/qa/assessments/1.2-trace-20250918.md for Given-When-Then mappings.
+risk_profile: docs/qa/assessments/1.2-risk-20250918.md
+nfr_validation:
+  _assessed:
+  - security
+  - performance
+  - reliability
+  - maintainability
+  security:
+    status: PASS
+    notes: No sensitive data logged; env keys validated when bug resolved.
+  performance:
+    status: CONCERNS
+    notes: Sequential LLM probes can block until timeout; consider parallelism or
+      shorter deadlines.
+  reliability:
+    status: FAIL
+    notes: Env validation bug raises AttributeError for missing keys.
+  maintainability:
+    status: CONCERNS
+    notes: No regression covering missing env branch; fragile serialization approach.
+evidence:
+  tests_reviewed: 4
+  risks_identified: 2
+  trace:
+    ac_covered:
+    - 1
+    - 2
+    - 3
+    - 4
+    ac_gaps:
+    - 5
+    - 6
+recommendations:
+  immediate:
+  - action: Use dataclasses.asdict for EnvIssue (or remove slots) and add unit test
+      for missing env path.
+    refs:
+    - src/legacy_web_mcp/config/validator.py:37
+    - tests/unit/mcp/test_diagnostics.py
+  future:
+  - action: Parallelize or make optional external LLM probes to avoid compounded timeouts;
+      document offline mode expectations.
+    refs:
+    - src/legacy_web_mcp/mcp/diagnostics.py:104

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import os
 from collections.abc import Iterable, Sequence
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 
 import structlog
 
@@ -19,7 +19,7 @@ MANDATORY_ENV_KEYS: Sequence[str] = (
 )
 
 
-@dataclass(slots=True)
+@dataclass
 class EnvIssue:
     """Represents a configuration validation finding."""
 
@@ -60,7 +60,7 @@ def summarize_env_validation(required_keys: Iterable[str] | None = None) -> dict
         return {"status": "ok", "details": []}
     return {
         "status": "warning",
-        "details": [issue.__dict__ for issue in issues],
+        "details": [asdict(issue) for issue in issues],
     }
 
 
