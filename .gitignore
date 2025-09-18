@@ -1,7 +1,8 @@
-.bmad-core/
 .claude/
 .cursor/
 .gemini/
+.bmad-core
+web-bundles/
 
 # Python
 __pycache__/
@@ -42,3 +43,4 @@ Thumbs.db
 htmlcov/
 coverage.xml
 .pytest_cache/
+# BMAD (local only)
