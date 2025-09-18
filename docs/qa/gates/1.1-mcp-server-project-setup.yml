@@ -1,8 +1,44 @@
 schema: 1
 story: '1.1'
+story_title: MCP Server Project Setup
 gate: PASS
-status_reason: 'Story documentation reviewed; ready for implementation.'
-reviewer: 'Quinn'
-updated: '2025-09-17T16:05:46+00:00'
+status_reason: CI pipeline updated and build artifacts ignored; bootstrap ready for
+  Done.
+reviewer: Quinn (Test Architect)
+updated: '2025-09-18T15:40:30Z'
 top_issues: []
-waiver: { active: false }
+waiver:
+  active: false
+quality_score: 100
+evidence:
+  tests_reviewed: 2
+  risks_identified: 0
+  trace:
+    ac_covered:
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+    - 6
+    ac_gaps: []
+nfr_validation:
+  security:
+    status: PASS
+    notes: No security scope for bootstrap.
+  performance:
+    status: PASS
+    notes: No runtime changes.
+  reliability:
+    status: PASS
+    notes: Ping contract covered by unit test.
+  maintainability:
+    status: PASS
+    notes: CI workflow fixed; gitignore updated.
+recommendations:
+  immediate: []
+  future:
+  - action: Add integration/E2E smoke tests exercising FastMCP ping via RPC.
+    refs:
+    - tests/unit/test_server.py
+expires: '2025-10-02T15:40:30Z'

@@ -1,7 +1,39 @@
-.bmad-core/
-.claude/
-.cursor/
-.gemini/
-# BMAD (local only)
-.bmad-core/
-.bmad-*/
+.bmad-core
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+
+# Environments
+.venv/
+.env
+
+# Editors
+.vscode/
+.idea/
+*.swp
+
+# Testing & coverage
+.coverage
+pytest_cache/
+htmlcov/
+
+dist/
+build/
+
+# Playwright
+playwright-report/
+playwright/.cache/
+
+# UV
+.uv/
+uv.lock
+
+# Misc
+.DS_Store
+*.log
+
+# MCP runtime artifacts
+analysis-output/
