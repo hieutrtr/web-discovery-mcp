@@ -9,6 +9,7 @@ from typing import Any, Dict, Mapping
 try:  # pragma: no cover - optional dependency
     import yaml  # type: ignore
 except ModuleNotFoundError:  # pragma: no cover
+    # PyYAML is optional - JSON config files are always supported
     yaml = None  # type: ignore
 
 CONFIG_ENV_VAR = "MCP_CONFIG_FILE"
@@ -30,6 +31,9 @@ class Settings:
     headless: bool = True
     monthly_budget_usd: float | None = None
     config_file: Path | None = None
+    # Analysis limits for LLM prompts
+    max_interactions_for_analysis: int = 20
+    max_api_events_for_analysis: int = 20
 
     def sanitized(self) -> Dict[str, Any]:
         data = asdict(self)
@@ -49,7 +53,8 @@ def _load_file(path: Path) -> Dict[str, Any]:
     if path.suffix in {".yaml", ".yml"}:
         if yaml is None:
             raise RuntimeError(
-                "PyYAML is required to parse YAML configuration files. Install 'pyyaml'."
+                f"PyYAML is required to parse YAML configuration files like '{path.name}'. "
+                "Install with: pip install pyyaml"
             )
         return yaml.safe_load(path.read_text())  # type: ignore[arg-type]
     raise ValueError(f"Unsupported configuration format: '{path.suffix}'")

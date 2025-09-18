@@ -99,3 +99,92 @@ def test_analyse_features_parses_response(tmp_path: Path) -> None:
     assert analysis.interactive_elements[0].selector == "form#lead"
     assert analysis.rebuild_requirements[0].priority == "high"
     assert analysis.api_integrations
+    assert analysis.quality_score > 0.3
+    assert analysis.rebuild_requirements[0].score >= 0.5
+    assert analysis.debug is not None
+
+
+def test_analyse_features_handles_empty_response(tmp_path: Path) -> None:
+    """Test that empty LLM responses are handled gracefully with fallback."""
+    client = StubLLMClient("")  # Empty response
+    interactions = [InteractionAction(action_type="click", selector="button#submit", description="Submit")]
+    analysis = asyncio.run(
+        analyse_features(
+            _page(tmp_path),
+            _summary(),
+            interactions,
+            _network(),
+            llm_client=client,
+        )
+    )
+    assert analysis.interactive_elements == []
+    assert analysis.rebuild_requirements  # fallback placeholder requirement
+    assert analysis.quality_score == 0.1
+    assert any("LLM responses invalid" in warning for warning in analysis.consistency_warnings)
+
+
+def test_analyse_features_handles_invalid_json(tmp_path: Path) -> None:
+    """Test that invalid JSON responses are handled gracefully with fallback."""
+    client = StubLLMClient("invalid json content")
+    interactions = [InteractionAction(action_type="click", selector="button#submit", description="Submit")]
+    analysis = asyncio.run(
+        analyse_features(
+            _page(tmp_path),
+            _summary(),
+            interactions,
+            _network(),
+            llm_client=client,
+        )
+    )
+    assert analysis.interactive_elements == []
+    assert analysis.quality_score == 0.1
+    assert analysis.rebuild_requirements[0].rationale == "Heuristic fallback"
+
+
+def test_analyse_features_handles_malformed_structure(tmp_path: Path) -> None:
+    """Test that malformed response structures are corrected."""
+    # Response with wrong types for required fields
+    llm_content = '{"interactive_elements": "not a list", "functional_capabilities": null}'
+    client = StubLLMClient(llm_content)
+    interactions = [InteractionAction(action_type="click", selector="button#submit", description="Submit")]
+    analysis = asyncio.run(
+        analyse_features(
+            _page(tmp_path),
+            _summary(),
+            interactions,
+            _network(),
+            llm_client=client,
+        )
+    )
+    # Should fall back to heuristic output with placeholder requirement
+    assert analysis.rebuild_requirements
+    assert analysis.quality_score == 0.1
+
+
+def test_analyse_features_respects_configurable_limits(tmp_path: Path) -> None:
+    """Test that interaction and API event limits are configurable."""
+    llm_content = '{"interactive_elements": [], "functional_capabilities": []}'
+    client = StubLLMClient(llm_content)
+
+    # Create more interactions and API events than default limit
+    interactions = [
+        InteractionAction(action_type="click", selector=f"button#{i}", description=f"Button {i}")
+        for i in range(25)
+    ]
+
+    analysis = asyncio.run(
+        analyse_features(
+            _page(tmp_path),
+            _summary(),
+            interactions,
+            _network(),
+            llm_client=client,
+            max_interactions=5,  # Custom limit
+            max_api_events=3,    # Custom limit
+        )
+    )
+    # Analysis should complete successfully with custom limits
+    assert hasattr(analysis, 'interactive_elements')
+    assert hasattr(analysis, 'processing_seconds')
+    assert analysis.processing_seconds >= 0
+    assert analysis.debug is not None

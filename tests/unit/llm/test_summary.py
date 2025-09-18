@@ -40,6 +40,10 @@ def test_summarize_content_parses_json(tmp_path: Path) -> None:
     assert isinstance(summary, ContentSummary)
     assert summary.purpose == "Collect leads"
     assert summary.confidence == 0.8
+    assert summary.quality_score > 0.5
+    assert "confidence" not in " ".join(summary.validation_issues)
+    assert summary.debug is not None
+    assert summary.context_highlights
 
 
 def test_summarize_content_missing_confidence_uses_heuristic(tmp_path: Path) -> None:
@@ -48,3 +52,5 @@ def test_summarize_content_missing_confidence_uses_heuristic(tmp_path: Path) -> 
     )
     summary = asyncio.run(summarize_content(_page(tmp_path), llm_client=client))
     assert 0.5 <= summary.confidence <= 0.9
+    assert any("confidence" in issue for issue in summary.validation_issues)
+    assert summary.quality_score > 0.0

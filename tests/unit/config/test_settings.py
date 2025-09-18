@@ -1,6 +1,8 @@
 import asyncio
 from pathlib import Path
 
+import pytest
+
 from legacy_web_mcp.config import load_settings, show_config, validate_settings
 
 
@@ -42,9 +44,10 @@ def test_show_config_redacts_secrets(tmp_path: Path) -> None:
         "STEP2_MODEL": "model-b",
         "FALLBACK_MODEL": "model-c",
     }
-    report = tmp_path / "config.yaml"
+    # Use JSON config to avoid PyYAML dependency in tests
+    report = tmp_path / "config.json"
     report.write_text(
-        "step1_model: config-model\nanalysis_output_root: ./reports\n"
+        '{"step1_model": "config-model", "analysis_output_root": "./reports"}'
     )
     result = load_settings(env=env, config_path=report)
     safe = result.sanitized()
@@ -53,3 +56,13 @@ def test_show_config_redacts_secrets(tmp_path: Path) -> None:
     assert config_report["settings"]["anthropic_api_key"] == "***redacted***"
     assert config_report["settings"]["headless"] in {True, False}
     assert config_report["validation"]["valid"]
+
+
+def test_yaml_config_requires_pyyaml_dependency(tmp_path: Path) -> None:
+    """Test that YAML config files properly handle missing PyYAML dependency."""
+    yaml_config = tmp_path / "config.yaml"
+    yaml_config.write_text("step1_model: yaml-model\nheadless: true\n")
+
+    # This should raise a clear error about missing PyYAML
+    with pytest.raises(RuntimeError, match="PyYAML is required to parse YAML configuration files"):
+        load_settings(env={}, config_path=yaml_config)
