@@ -9,7 +9,7 @@ from typing import Final
 import structlog
 from fastmcp import FastMCP
 
-from legacy_web_mcp.mcp import diagnostics
+from legacy_web_mcp.mcp import config_tools, diagnostics
 from legacy_web_mcp.shared.logging import configure_logging
 
 _SERVER_NAME: Final[str] = "Legacy Web MCP Server"
@@ -44,6 +44,7 @@ def create_mcp() -> FastMCP:
     mcp = FastMCP(name=_SERVER_NAME)
     mcp.tool(ping)
     diagnostics.register(mcp)
+    config_tools.register(mcp)
     return mcp
 
 

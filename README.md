@@ -53,13 +53,19 @@ Detailed architectural guidance lives in `docs/architecture.md` and related docu
 
 ## Configuration
 
-Secrets and settings are provided via environment variables. Copy `.env.template` to `.env` and fill in provider keys before running features that depend on them.
+- Copy `.env.template` to `.env` and populate your LLM provider keys and model names.
+- Override non-secret defaults via `config/default.yaml` (or your own config file). Values in this file are merged on top of environment settings when the server boots.
+- Inspect the active configuration (with secrets redacted) through the `show_config` MCP tool, for example:
 
-```bash
-cp .env.template .env
-```
+  ```bash
+  uv run python scripts/diagnostics_client.py health    # Shows health and config summary
+  uv run python scripts/diagnostics_client.py list      # Lists available tools/resources
+  uv run python scripts/diagnostics_client.py status    # Live system metrics
+  ```
 
-Additional configuration layers (YAML/JSON files) arrive in Story 1.3.
+  The `show_config` tool backs the health summary and can be called directly in MCP-aware IDEs.
+
+- Default output folders, concurrency limits, and timeouts are documented in `config/default.yaml` and `docs/stories/1.3.basic-configuration-management.md`.
 
 ## Continuous Integration
 

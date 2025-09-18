@@ -1,0 +1,12 @@
+# Default configuration for the Legacy Web MCP Server
+# Copy or override values as needed in your own config files.
+
+BROWSER_ENGINE: chromium
+MAX_CONCURRENT_PAGES: 3
+OUTPUT_ROOT: docs/web_discovery
+
+DISCOVERY_TIMEOUT: 60.0
+ANALYSIS_TIMEOUT: 120.0
+
+YOLO_MODE_ENABLED: false
+INTERACTIVE_MODE_ENABLED: true

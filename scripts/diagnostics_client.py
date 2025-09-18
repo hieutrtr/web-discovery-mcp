@@ -5,8 +5,9 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+from collections.abc import Sequence
 from dataclasses import asdict, is_dataclass
-from typing import Any, Sequence
+from typing import Any
 
 from fastmcp import Client
 
