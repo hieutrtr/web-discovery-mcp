@@ -11,11 +11,18 @@ import json
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Optional, Protocol
+from typing import Any, Mapping, Optional, Protocol, Sequence
 
-from legacy_web_mcp.config import load_settings
-from legacy_web_mcp.progress import CheckpointManager
+from legacy_web_mcp.config import Settings, load_settings
+from legacy_web_mcp.llm.client import build_default_client
+from legacy_web_mcp.interaction import InteractiveConfig
+from legacy_web_mcp.progress import CheckpointManager, ProgressTracker
 from legacy_web_mcp.storage import ProjectPaths
+from legacy_web_mcp.workflows import (
+    YoloAnalysisConfig,
+    load_discovered_urls,
+    run_yolo_analysis,
+)
 
 SERVER_NAME = "legacy-web-analysis"
 
@@ -51,6 +58,25 @@ class SimpleMCPServer:
     async def checkpoint_analysis(self, project_id: str) -> dict[str, Any]:
         return _create_manual_checkpoint(project_id)
 
+    async def yolo_analysis(self, project_id: str, urls: Sequence[str] | None = None, config_overrides: Mapping[str, Any] | None = None) -> dict[str, Any]:
+        return await _yolo_entrypoint(project_id, urls, config_overrides=config_overrides)
+
+    async def start_analysis(
+        self,
+        project_id: str,
+        mode: str | None = None,
+        urls: Sequence[str] | None = None,
+        config: Mapping[str, Any] | None = None,
+        checkpoint_path: str | None = None,
+    ) -> dict[str, Any]:
+        return await _start_analysis(
+            project_id,
+            mode=mode,
+            urls=urls,
+            config=config,
+            checkpoint_path=checkpoint_path,
+        )
+
     def run(self) -> None:
         raise RuntimeError(
             "FastMCP is not installed. Install 'fastmcp' to run the production server."
@@ -64,45 +90,345 @@ async def _default_ping() -> dict[str, str]:
 def create_mcp_server() -> Any:
     """Create the MCP server instance.
 
-    Returns a FastMCP :class:`MCPServer` when the dependency is available,
+    Returns a FastMCP server when the dependency is available,
     otherwise returns :class:`SimpleMCPServer` so the remainder of the
     application can operate in a degraded but testable mode.
     """
     try:
-        from fastmcp import MCPServer, resource, tool  # type: ignore
+        from fastmcp import FastMCP  # type: ignore
     except ModuleNotFoundError:
         return SimpleMCPServer()
 
-    server = MCPServer(name=SERVER_NAME)
+    server = FastMCP(name=SERVER_NAME)
 
-    @tool()
+    @server.tool
     async def ping() -> dict[str, str]:
         return await _default_ping()
 
-    server.add_tool(ping)
-
-    @resource()
+    @server.resource("analysis://progress")
     async def analysis_progress(project_id: Optional[str] = None) -> dict[str, Any]:
         return _load_progress_snapshot(project_id)
 
-    server.add_resource(analysis_progress)
-
-    @tool()
+    @server.tool
     async def pause_analysis(project_id: str) -> dict[str, Any]:
         return _set_analysis_status(project_id, "paused")
 
-    @tool()
+    @server.tool
     async def resume_analysis(project_id: str) -> dict[str, Any]:
         return _set_analysis_status(project_id, "running")
 
-    @tool()
+    @server.tool
     async def checkpoint_analysis(project_id: str) -> dict[str, Any]:
         return _create_manual_checkpoint(project_id)
 
-    server.add_tool(pause_analysis)
-    server.add_tool(resume_analysis)
-    server.add_tool(checkpoint_analysis)
+    @server.tool
+    async def yolo_analysis(project_id: str, urls: Sequence[str] | None = None, config_overrides: Mapping[str, Any] | None = None) -> dict[str, Any]:
+        return await _yolo_entrypoint(project_id, urls, config_overrides=config_overrides)
+
+    @server.tool
+    async def start_analysis(
+        project_id: str,
+        mode: str | None = None,
+        urls: Sequence[str] | None = None,
+        config: Mapping[str, Any] | None = None,
+        checkpoint_path: str | None = None,
+    ) -> dict[str, Any]:
+        return await _start_analysis(
+            project_id,
+            mode=mode,
+            urls=urls,
+            config=config,
+            checkpoint_path=checkpoint_path,
+        )
+
     return server
+
+
+async def _yolo_entrypoint(
+    project_id: str,
+    urls: Sequence[str] | None,
+    *,
+    config_overrides: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    settings = load_settings()
+    root = Path(settings.analysis_output_root)
+    try:
+        project = _build_project_paths(project_id, root)
+    except FileNotFoundError:
+        return {
+            "project_id": project_id,
+            "status": "missing_project",
+            "detail": "Project directory not found. Run discovery before analysis.",
+        }
+
+    try:
+        url_list = list(urls) if urls is not None else load_discovered_urls(project)
+    except FileNotFoundError:
+        url_list = []
+
+    url_list = [url for url in url_list if url]
+    if not url_list:
+        return {
+            "project_id": project_id,
+            "status": "no_urls",
+            "detail": "No URLs provided or discovered for analysis. Supply urls or rerun discovery.",
+        }
+
+    llm_client = build_default_client()
+    try:
+        result = await run_yolo_analysis(
+            project=project,
+            urls=url_list,
+            settings=settings,
+            llm_client=llm_client,
+            config_overrides=config_overrides,
+        )
+    except Exception as exc:  # pragma: no cover - defensive
+        return {
+            "project_id": project_id,
+            "status": "error",
+            "detail": str(exc),
+        }
+    payload = result.to_dict()
+    payload.setdefault("project_id", project_id)
+    payload.setdefault("urls_processed", len(url_list))
+    return payload
+
+
+async def _start_analysis(
+    project_id: str,
+    *,
+    mode: str | None,
+    urls: Sequence[str] | None,
+    config: Mapping[str, Any] | None,
+    checkpoint_path: str | None,
+) -> dict[str, Any]:
+    settings = load_settings()
+    root = Path(settings.analysis_output_root)
+    try:
+        project = _build_project_paths(project_id, root)
+    except FileNotFoundError:
+        return {
+            "project_id": project_id,
+            "status": "missing_project",
+            "detail": "Project directory not found. Run discovery before starting analysis.",
+        }
+
+    catalog = _analysis_mode_catalog(settings)
+    configuration = dict(config or {})
+
+    if mode is None:
+        interactive_defaults = _interactive_defaults(settings, configuration.get("interactive"))
+        yolo_defaults = _yolo_defaults(settings, configuration.get("yolo"))
+        return {
+            "project_id": project_id,
+            "status": "awaiting_selection",
+            "modes": catalog,
+            "defaults": {
+                "interactive": interactive_defaults,
+                "yolo": yolo_defaults,
+            },
+            "instructions": "Invoke start_analysis with mode='interactive' or mode='yolo' to begin a workflow.",
+        }
+
+    normalized_mode = mode.lower()
+    if normalized_mode == "interactive":
+        interactive_overrides = configuration.get("interactive")
+        interactive_config = _interactive_defaults(settings, interactive_overrides)
+        pending_urls = _resolve_urls(project, urls)
+        return {
+            "project_id": project_id,
+            "status": "interactive_ready",
+            "mode": "interactive",
+            "config": interactive_config,
+            "pending_urls": pending_urls,
+            "modes": catalog,
+            "next_tool": "interactive_analysis",
+            "instructions": "Call interactive_analysis with the provided configuration to begin the guided session.",
+        }
+
+    if normalized_mode == "yolo":
+        yolo_overrides = configuration.get("yolo")
+        return await _yolo_entrypoint(project_id, urls, config_overrides=yolo_overrides)
+
+    if normalized_mode in {"switch", "switch_to_yolo", "interactive_to_yolo"}:
+        if not checkpoint_path:
+            return {
+                "project_id": project_id,
+                "status": "error",
+                "detail": "checkpoint_path is required when switching from Interactive to YOLO.",
+            }
+        yolo_overrides = configuration.get("yolo")
+        return await _switch_interactive_to_yolo(
+            project=project,
+            settings=settings,
+            checkpoint_path=checkpoint_path,
+            config_overrides=yolo_overrides,
+            additional_urls=urls,
+        )
+
+    return {
+        "project_id": project_id,
+        "status": "unsupported_mode",
+        "detail": f"Unknown analysis mode '{mode}'.",
+        "modes": catalog,
+    }
+
+
+def _analysis_mode_catalog(settings: Settings) -> list[dict[str, Any]]:
+    interactive = {
+        "id": "interactive",
+        "title": "Interactive Mode",
+        "summary": "Human-in-the-loop review for each analysis step before results are committed.",
+        "tradeoffs": {
+            "speed": "Slower — pauses for approvals at every checkpoint.",
+            "cost": "Higher — retries and edits may incur extra LLM usage.",
+            "confidence": "Highest — manual validation on every page.",
+        },
+    }
+    yolo = {
+        "id": "yolo",
+        "title": "YOLO Mode",
+        "summary": "Fully automated batch analysis optimized for throughput.",
+        "tradeoffs": {
+            "speed": "Fastest — continuous automation with concurrency.",
+            "cost": "Predictable — single pass through each page with retries on failure.",
+            "confidence": "Moderate — relies on automated validation heuristics.",
+        },
+    }
+    return [interactive, yolo]
+
+
+def _interactive_defaults(settings: Settings, overrides: Mapping[str, Any] | None) -> dict[str, Any]:
+    overrides = dict(overrides or {})
+    config = InteractiveConfig(
+        step1_model=str(overrides.get("step1_model", "step1")),
+        step2_model=str(overrides.get("step2_model", "step2")),
+        timeout_seconds=float(overrides.get("timeout_seconds", InteractiveConfig().timeout_seconds)),
+    )
+    return {
+        "step1_model": config.step1_model,
+        "step2_model": config.step2_model,
+        "timeout_seconds": config.timeout_seconds,
+        "suggested_models": {
+            "step1": settings.step1_model,
+            "step2": settings.step2_model,
+        },
+    }
+
+
+def _yolo_defaults(settings: Settings, overrides: Mapping[str, Any] | None) -> dict[str, Any]:
+    config = YoloAnalysisConfig.from_settings(settings, overrides=overrides)
+    return {
+        "step1_model": config.step1_model,
+        "step2_model": config.step2_model,
+        "max_concurrency": config.max_concurrency,
+        "max_attempts": config.max_attempts,
+    }
+
+
+def _resolve_urls(project: ProjectPaths, urls: Sequence[str] | None) -> list[str]:
+    if urls:
+        return [url for url in urls if url]
+    try:
+        return load_discovered_urls(project)
+    except FileNotFoundError:
+        return []
+
+
+def _merge_pending_urls(
+    current_url: str | None,
+    queue_urls: Sequence[str],
+    additional_urls: Sequence[str] | None,
+) -> list[str]:
+    merged: list[str] = []
+    seen: set[str] = set()
+
+    def _append(url: str | None) -> None:
+        if url and url not in seen:
+            seen.add(url)
+            merged.append(url)
+
+    _append(current_url)
+    for url in queue_urls:
+        _append(url)
+    if additional_urls:
+        for url in additional_urls:
+            _append(url)
+    return merged
+
+
+async def _switch_interactive_to_yolo(
+    *,
+    project: ProjectPaths,
+    settings: Settings,
+    checkpoint_path: str,
+    config_overrides: Mapping[str, Any] | None,
+    additional_urls: Sequence[str] | None,
+) -> dict[str, Any]:
+    path = Path(checkpoint_path)
+    if not path.is_absolute():
+        path = project.checkpoints_dir / path
+    if not path.exists():
+        return {
+            "project_id": project.project_id,
+            "status": "missing_checkpoint",
+            "detail": f"Checkpoint file '{path}' not found.",
+        }
+
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        return {
+            "project_id": project.project_id,
+            "status": "invalid_checkpoint",
+            "detail": f"Checkpoint could not be parsed: {exc}",
+        }
+
+    tracker_state = payload.get("tracker", {})
+    interactive_state = tracker_state.get("interactive", {})
+    queue = interactive_state.get("queue") or payload.get("queue", [])
+    current_url = payload.get("current_url")
+    pending_urls = _merge_pending_urls(current_url, queue, additional_urls)
+
+    if not pending_urls:
+        return {
+            "project_id": project.project_id,
+            "status": "nothing_to_process",
+            "detail": "No remaining URLs found in checkpoint queue.",
+        }
+
+    progress = ProgressTracker(project)
+    if tracker_state:
+        progress.restore(tracker_state)
+    progress.register_urls(pending_urls)
+
+    overrides = dict(config_overrides or {})
+    interactive_config = interactive_state.get("config", {})
+    for key in ("step1_model", "step2_model"):
+        if key in interactive_config and key not in overrides:
+            overrides[key] = interactive_config[key]
+
+    llm_client = build_default_client()
+    checkpoints = CheckpointManager(project)
+    result = await run_yolo_analysis(
+        project=project,
+        urls=pending_urls,
+        settings=settings,
+        llm_client=llm_client,
+        config_overrides=overrides,
+        progress=progress,
+        checkpoints=checkpoints,
+    )
+    response = result.to_dict()
+    response.update(
+        {
+            "mode": "yolo",
+            "source_checkpoint": str(path),
+            "pending_urls": pending_urls,
+        }
+    )
+    return response
 
 
 def _load_progress_snapshot(project_id: str | None) -> dict[str, Any]:
