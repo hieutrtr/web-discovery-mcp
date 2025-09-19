@@ -45,6 +45,7 @@ class MCPSettings(BaseSettings):
     # Timeout configuration (seconds)
     DISCOVERY_TIMEOUT: float = 60.0
     ANALYSIS_TIMEOUT: float = 120.0
+    DISCOVERY_MAX_DEPTH: int = 1
 
     @property
     def sensitive_fields(self) -> set[str]:
