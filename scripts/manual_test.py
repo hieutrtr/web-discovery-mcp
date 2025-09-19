@@ -22,14 +22,46 @@ import asyncio
 import json
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, Dict
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
+from fastmcp import Context
 from legacy_web_mcp.config.loader import load_configuration
 from legacy_web_mcp.mcp.server import create_mcp
 from legacy_web_mcp.storage import create_project_store
+from mcp.server.lowlevel.server import request_ctx
+from mcp.shared.context import RequestContext
+
+
+class MockMCPSession:
+    """Mock MCP session that mimics ServerSession interface."""
+
+    def __init__(self):
+        self.session_id = "test-session-123"
+
+    async def send_log_message(self, level: str, data: Any, logger: str = None, related_request_id: str = None):
+        """Mock log message sending - print to console with formatting."""
+        prefix = f"[{level.upper()}]"
+        if logger:
+            prefix += f" {logger}:"
+        print(f"{prefix} {data}")
+        if related_request_id:
+            print(f"  Request ID: {related_request_id}")
+
+
+def create_mock_request_context():
+    """Create a mock request context that works with FastMCP."""
+    mock_session = MockMCPSession()
+    # Create a proper RequestContext with all required parameters
+    return RequestContext(
+        request_id="test-request-123",
+        meta=None,  # Optional metadata
+        session=mock_session,
+        lifespan_context=None,  # We don't need lifespan context for basic testing
+        request=None  # We don't need the request for basic tool testing
+    )
 
 
 class MCPTester:
@@ -37,60 +69,71 @@ class MCPTester:
 
     def __init__(self):
         self.mcp = create_mcp()
+        self.context = Context(self.mcp)
+        self.mock_request_context = create_mock_request_context()
         self.settings = load_configuration()
         self.project_store = create_project_store(self.settings)
+
+    async def call_tool(self, tool_name: str, arguments: Dict[str, Any]) -> Any:
+        """Call a specific tool with given arguments."""
+        tools = await self.mcp.get_tools()
+        if tool_name not in tools:
+            available_tools = ", ".join(tools.keys())
+            raise ValueError(f"Tool '{tool_name}' not found. Available tools: {available_tools}")
+
+        tool = tools[tool_name]
+        if not tool.enabled:
+            raise ValueError(f"Tool '{tool_name}' is disabled")
+
+        # Call the tool function with context and arguments
+        try:
+            # Check if the function takes a context parameter
+            import inspect
+            sig = inspect.signature(tool.fn)
+            params = list(sig.parameters.keys())
+
+            if params and params[0] == 'context':
+                # Function expects context as first parameter
+                # Set up mock context for tools that need session
+                token = request_ctx.set(self.mock_request_context)
+                try:
+                    return await tool.fn(self.context, **arguments)
+                finally:
+                    request_ctx.reset(token)
+            else:
+                # Function doesn't take context
+                return await tool.fn(**arguments)
+        except Exception as e:
+            raise RuntimeError(f"Tool execution failed: {e}") from e
 
     async def test_health_checks(self) -> None:
         """Test health check and diagnostic tools."""
         print("🔍 Testing Health Checks and Diagnostics")
         print("=" * 50)
 
-        tools = await self.mcp.get_tools()
+        tools_to_test = ["health_check", "validate_dependencies", "test_llm_connectivity"]
 
-        # Test health_check tool
-        if "health_check" in tools:
-            print("\n📊 Running health_check...")
+        for tool_name in tools_to_test:
+            print(f"\n📊 Running {tool_name}...")
             try:
-                result = await tools["health_check"].run({})
-                print(f"✅ Health check passed: {result.content}")
+                result = await self.call_tool(tool_name, {{}})
+                print(f"✅ {tool_name} passed: {result}")
             except Exception as e:
-                print(f"❌ Health check failed: {e}")
-
-        # Test validate_dependencies tool
-        if "validate_dependencies" in tools:
-            print("\n🔧 Running validate_dependencies...")
-            try:
-                result = await tools["validate_dependencies"].run({})
-                print(f"✅ Dependencies validated: {result.content}")
-            except Exception as e:
-                print(f"❌ Dependencies validation failed: {e}")
-
-        # Test test_llm_connectivity tool
-        if "test_llm_connectivity" in tools:
-            print("\n🌐 Running test_llm_connectivity...")
-            try:
-                result = await tools["test_llm_connectivity"].run({})
-                print(f"✅ LLM connectivity tested: {result.content}")
-            except Exception as e:
-                print(f"❌ LLM connectivity test failed: {e}")
+                print(f"❌ {tool_name} failed: {e}")
 
     async def test_configuration(self) -> None:
         """Test configuration management."""
         print("⚙️  Testing Configuration Management")
         print("=" * 50)
 
-        tools = await self.mcp.get_tools()
-
-        # Test show_config tool
-        if "show_config" in tools:
-            print("\n📋 Running show_config...")
-            try:
-                result = await tools["show_config"].run({})
-                config_data = result.content
-                print("✅ Configuration retrieved:")
-                print(json.dumps(config_data, indent=2))
-            except Exception as e:
-                print(f"❌ Configuration retrieval failed: {e}")
+        print("\n📋 Running show_config...")
+        try:
+            result = await self.call_tool("show_config", {{}})
+            config_data = result
+            print("✅ Configuration retrieved:")
+            print(json.dumps(config_data, indent=2))
+        except Exception as e:
+            print(f"❌ Configuration retrieval failed: {e}")
 
         # Show current settings
         print(f"\n📁 Output root: {self.settings.OUTPUT_ROOT}")
@@ -102,38 +145,35 @@ class MCPTester:
         print(f"🕸️  Testing Website Discovery for: {url}")
         print("=" * 50)
 
-        tools = await self.mcp.get_tools()
+        print(f"\n🔍 Discovering website: {url}")
+        try:
+            result = await self.call_tool("discover_website", {{"url": url}})
+            discovery_data = result
 
-        if "discover_website" in tools:
-            print(f"\n🔍 Discovering website: {url}")
-            try:
-                result = await tools["discover_website"].run({"url": url})
-                discovery_data = result.content
+            print("✅ Website discovery completed!")
+            print(f"📊 Project ID: {discovery_data['project_id']}")
+            print(f"🌐 Domain: {discovery_data['domain']}")
+            print(f"📈 Total URLs: {discovery_data['summary']['total']}")
+            print(f"📄 Internal pages: {discovery_data['summary']['internal_pages']}")
+            print(f"🔗 External pages: {discovery_data['summary']['external_pages']}")
+            print(f"📎 Assets: {discovery_data['summary']['assets']}")
 
-                print("✅ Website discovery completed!")
-                print(f"📊 Project ID: {discovery_data['project_id']}")
-                print(f"🌐 Domain: {discovery_data['domain']}")
-                print(f"📈 Total URLs: {discovery_data['summary']['total']}")
-                print(f"📄 Internal pages: {discovery_data['summary']['internal_pages']}")
-                print(f"🔗 External pages: {discovery_data['summary']['external_pages']}")
-                print(f"📎 Assets: {discovery_data['summary']['assets']}")
+            print(f"\n📋 Discovery sources:")
+            sources = discovery_data['sources']
+            print(f"  📄 Sitemap: {'✅' if sources['sitemap'] else '❌'}")
+            print(f"  🤖 Robots.txt: {'✅' if sources['robots'] else '❌'}")
+            print(f"  🕷️  Crawling: {'✅' if sources['crawl'] else '❌'}")
 
-                print(f"\n📋 Discovery sources:")
-                sources = discovery_data['sources']
-                print(f"  📄 Sitemap: {'✅' if sources['sitemap'] else '❌'}")
-                print(f"  🤖 Robots.txt: {'✅' if sources['robots'] else '❌'}")
-                print(f"  🕷️  Crawling: {'✅' if sources['crawl'] else '❌'}")
+            print(f"\n📁 Project files:")
+            paths = discovery_data['paths']
+            print(f"  📂 Root: {paths['root']}")
+            print(f"  📄 JSON: {paths['inventory_json']}")
+            print(f"  📄 YAML: {paths['inventory_yaml']}")
 
-                print(f"\n📁 Project files:")
-                paths = discovery_data['paths']
-                print(f"  📂 Root: {paths['root']}")
-                print(f"  📄 JSON: {paths['inventory_json']}")
-                print(f"  📄 YAML: {paths['inventory_yaml']}")
-
-            except Exception as e:
-                print(f"❌ Website discovery failed: {e}")
-                import traceback
-                traceback.print_exc()
+        except Exception as e:
+            print(f"❌ Website discovery failed: {e}")
+            import traceback
+            traceback.print_exc()
 
     async def test_project_management(self) -> None:
         """Test project organization and management."""
@@ -156,7 +196,7 @@ class MCPTester:
             print(f"❌ Project listing failed: {e}")
 
         # Show storage configuration
-        print(f"\n📂 Storage root: {self.project_store._root}")
+        print(f"\n📂 Storage root: {self.project_store.root}")
         print(f"📊 Total projects in storage: {len(self.project_store.list_projects())}")
 
     async def run_all_tests(self) -> None:

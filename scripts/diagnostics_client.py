@@ -54,7 +54,14 @@ async def _list_capabilities(client: Client) -> dict[str, Any]:
     tools = await client.list_tools()
     resources = await client.list_resource_templates()
     return {
-        "tools": [tool.name for tool in tools],
+        "tools": [
+            {
+                "name": tool.name,
+                "description": tool.description,
+                "parameters": _jsonify(tool.inputSchema) if hasattr(tool, 'inputSchema') else None
+            }
+            for tool in tools
+        ],
         "resources": [_jsonify(template) for template in resources],
     }
 

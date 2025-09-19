@@ -15,10 +15,7 @@ from legacy_web_mcp.storage.projects import create_project_store
 def register(mcp: FastMCP) -> None:
     """Register navigation tools with the MCP instance."""
 
-    @mcp.tool(
-        name="navigate_to_page",
-        description="Navigate to a URL and extract complete page content including HTML, metadata, and screenshots."
-    )
+    @mcp.tool()
     async def navigate_to_page(
         context: Context,
         url: str,
@@ -29,7 +26,38 @@ def register(mcp: FastMCP) -> None:
         wait_for_network_idle: bool = True,
         browser_engine: str = "chromium",
     ) -> Dict[str, Any]:
-        """Navigate to a page and extract content."""
+        """Navigate to a URL and extract comprehensive page content.
+
+        Performs full page navigation with content extraction including HTML source,
+        page metadata, visible text, and optional screenshot capture. Handles timeouts,
+        retries, and error scenarios gracefully while maintaining session isolation.
+
+        Args:
+            url: Target URL to navigate to (required)
+            project_id: Project identifier for organizing extracted content (default: "navigation-test")
+            timeout: Maximum time in seconds to wait for page load (default: 30.0)
+            max_retries: Number of retry attempts for failed navigation (default: 3)
+            take_screenshot: Whether to capture a full-page screenshot (default: True)
+            wait_for_network_idle: Wait for network requests to complete (default: True)
+            browser_engine: Browser engine to use - "chromium", "firefox", or "webkit" (default: "chromium")
+
+        Returns:
+            Dictionary containing:
+            - url: Final URL after redirects
+            - title: Page title
+            - html_content: Complete HTML source
+            - visible_text: Cleaned visible text content
+            - meta_data: Meta tags and page metadata
+            - screenshot_path: Path to captured screenshot (if enabled)
+            - load_time: Time taken to load the page
+            - status_code: HTTP response status code
+            - content_size: Size of HTML content in bytes
+            - session_id: Browser session identifier for potential reuse
+
+        Raises:
+            PageNavigationError: When navigation fails after retries or encounters HTTP errors
+            BrowserSessionError: When browser session creation or management fails
+        """
         settings = load_configuration()
         browser_service = BrowserAutomationService(settings)
         project_store = create_project_store(settings)
@@ -137,16 +165,39 @@ def register(mcp: FastMCP) -> None:
                 pass  # Ignore cleanup errors
             await browser_service.shutdown()
 
-    @mcp.tool(
-        name="extract_page_content",
-        description="Extract content from an already loaded page without navigation."
-    )
+    @mcp.tool()
     async def extract_page_content(
         context: Context,
         project_id: str,
         capture_screenshot: bool = False,
     ) -> Dict[str, Any]:
-        """Extract content from an existing page session."""
+        """Extract content from an already loaded page without performing navigation.
+
+        Extracts comprehensive page content from an existing browser session that has
+        already navigated to a page. Useful for re-extracting content after page
+        interactions or when you want to capture content changes without re-navigation.
+
+        Args:
+            project_id: Project identifier of existing browser session (required)
+            capture_screenshot: Whether to capture a fresh screenshot (default: False)
+
+        Returns:
+            Dictionary containing:
+            - success: Whether extraction was successful
+            - title: Current page title
+            - html_content: Complete HTML source
+            - visible_text: Cleaned visible text content
+            - meta_data: Meta tags and page metadata
+            - url: Current page URL (may differ from original if redirected)
+            - content_size: Size of HTML content in bytes
+            - screenshot_path: Path to captured screenshot (if requested)
+            - extracted_at: ISO timestamp of extraction
+            - session_id: Browser session identifier
+
+        Raises:
+            BrowserSessionError: When no active session exists for the project_id
+            RuntimeError: When page content extraction fails
+        """
         settings = load_configuration()
         browser_service = BrowserAutomationService(settings)
 

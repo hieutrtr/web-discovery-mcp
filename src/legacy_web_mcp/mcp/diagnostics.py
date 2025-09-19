@@ -175,26 +175,71 @@ async def gather_llm_connectivity() -> dict[str, Any]:
 def register(mcp: FastMCP) -> None:
     """Register diagnostics tools/resources with the provided MCP instance."""
 
-    @mcp.tool(name="health_check", description="Summarize server health and configuration status.")
+    @mcp.tool()
     async def health_check(context: Context) -> dict[str, Any]:
+        """Perform comprehensive server health check and report system status.
+
+        Executes a full diagnostic suite including server status, environment validation,
+        browser dependency checks, and LLM provider connectivity tests. Provides
+        detailed status information for troubleshooting and monitoring.
+
+        Returns:
+            Dictionary containing:
+            - server: MCP server information and available tools
+            - environment: Environment variable validation results
+            - playwright: Browser installation status for all engines
+            - llm: LLM provider connectivity status and API health
+            - timestamp: Check execution time
+
+        Use Case:
+            Primary diagnostic tool for verifying system readiness and identifying
+            configuration issues. Run this first when troubleshooting problems.
+        """
         payload = await perform_health_check(mcp)
         LOGGER.info("health_check", payload=payload)
         return payload
 
-    @mcp.tool(
-        name="validate_dependencies",
-        description="Check Playwright installations and report guidance.",
-    )
+    @mcp.tool()
     async def validate_dependencies(context: Context) -> dict[str, Any]:
+        """Validate Playwright browser installations and provide guidance.
+
+        Checks the installation status of all supported browser engines and provides
+        detailed remediation guidance for any missing or misconfigured browsers.
+
+        Returns:
+            Dictionary containing:
+            - browsers: Array of browser status reports
+            - Each browser includes:
+              - name: Browser engine identifier
+              - status: "installed", "missing", or "error"
+              - details: Version info or remediation guidance
+
+        Use Case:
+            Diagnose browser installation issues and get specific remediation steps.
+            Essential for setting up the browser automation environment.
+        """
         status = await gather_dependency_report()
         LOGGER.info("validate_dependencies", status=status)
         return status
 
-    @mcp.tool(
-        name="test_llm_connectivity",
-        description="Verify configured LLM providers respond with current credentials.",
-    )
+    @mcp.tool()
     async def test_llm_connectivity(context: Context) -> dict[str, Any]:
+        """Test connectivity to configured LLM providers with current credentials.
+
+        Validates API credentials and connectivity for all configured LLM providers
+        (OpenAI, Anthropic, Google Gemini) by making lightweight test requests.
+
+        Returns:
+            Dictionary containing:
+            - Provider status for each configured LLM service
+            - API response times and availability
+            - Authentication status and error details
+            - Recommended actions for failed connections
+
+        Use Case:
+            Verify LLM API credentials and network connectivity before operations
+            that require AI processing. Helps diagnose authentication failures.
+        """
         status = await gather_llm_connectivity()
         LOGGER.info("test_llm_connectivity", results=status)
         return status

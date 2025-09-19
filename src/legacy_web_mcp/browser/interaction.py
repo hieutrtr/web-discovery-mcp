@@ -208,6 +208,7 @@ class PageInteractionAutomator:
             ".button",
             ".link",
             ".menu-item",
+            ".tooltip",
             "[data-testid*='button']",
             "[data-testid*='link']",
         ]
@@ -620,7 +621,7 @@ class PageInteractionAutomator:
         """Perform hover and focus interactions to reveal hidden elements."""
         hover_elements = [
             elem for elem in elements
-            if elem.element_type in ["button", "link", "menu_item"] and
+            if elem.element_type in ["button", "link", "menu_item", "interactive"] and
             elem.is_visible and elem.is_interactive
         ]
 
@@ -709,7 +710,7 @@ class PageInteractionAutomator:
         elif element.attributes.get("id"):
             return page.locator(f"#{element.attributes['id']}")
         elif element.text_content:
-            return page.locator(f"{element.tag_name}:has-text('{element.text_content[:50]}')")
+            return page.locator(f"{element.tag_name}:has-text('{element.text_content[:50].replace('\n', ' ')}')")
         else:
             return page.locator(element.selector)
 
