@@ -80,6 +80,36 @@ python scripts/test_discovery_direct.py https://context7.com
 python scripts/test_discovery_direct.py https://your-website.com
 ```
 
+### 4. `test_browser_session.py` - Browser Session Management Testing
+
+Tests the Playwright browser session management features from Story 2.1, including multi-engine support, concurrency control, crash recovery, and performance metrics.
+
+**Usage:**
+```bash
+# Run all browser session tests
+python scripts/test_browser_session.py all
+
+# Test specific components
+python scripts/test_browser_session.py engines      # Multi-engine support
+python scripts/test_browser_session.py concurrency # Concurrent session limits
+python scripts/test_browser_session.py lifecycle   # Session lifecycle management
+python scripts/test_browser_session.py recovery    # Crash detection and recovery
+python scripts/test_browser_session.py metrics     # Performance metrics collection
+python scripts/test_browser_session.py install     # Browser installation validation
+```
+
+**Examples:**
+```bash
+# Validate browser installation
+python scripts/test_browser_session.py install
+
+# Test concurrency control
+python scripts/test_browser_session.py concurrency
+
+# Run complete test suite
+python scripts/test_browser_session.py all
+```
+
 ## Available MCP Tools
 
 The server provides these tools that you can test:
