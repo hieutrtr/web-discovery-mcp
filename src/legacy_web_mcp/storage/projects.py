@@ -98,7 +98,7 @@ class ProjectStore:
 
     @classmethod
     def from_settings(cls, settings: MCPSettings) -> ProjectStore:
-        return cls(settings.OUTPUT_ROOT)
+        return cls(Path(settings.OUTPUT_ROOT))
 
     @property
     def root(self) -> Path:
