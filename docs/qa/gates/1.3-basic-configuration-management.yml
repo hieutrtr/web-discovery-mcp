@@ -2,23 +2,22 @@ schema: 1
 story: '1.3'
 story_title: Basic Configuration Management
 gate: PASS
-status_reason: Configuration loader, diagnostics, and show_config validate cleanly; secrets stay redacted and missing env keys surface with remediation.
+status_reason: Automated show_config coverage now locks in redaction guarantees while loader and diagnostics stay reliable.
 reviewer: Quinn (Test Architect)
-updated: '2025-09-18T23:26:06+00:00'
+updated: '2025-09-19T01:25:03+00:00'
 top_issues: []
 waiver:
   active: false
-quality_score: 90
+quality_score: 92
 trace:
   totals:
     requirements: 6
-    full: 5
-    partial: 1
+    full: 6
+    partial: 0
     none: 0
   planning_ref: docs/qa/assessments/1.3-test-design-20250919.md
-  uncovered:
-  - AC3 currently validated manually; automate `show_config` response assertion.
-  notes: See docs/qa/assessments/1.3-trace-20250918.md for Given-When-Then mappings.
+  uncovered: []
+  notes: Automated FastMCP coverage replaces prior manual `show_config` verification.
 risk_profile: docs/qa/assessments/1.3-risk-20250918.md
 risk_summary:
   totals:
@@ -43,7 +42,7 @@ nfr_validation:
   - maintainability
   security:
     status: PASS
-    notes: Secrets redacted via display_dict; diagnostics never echo API keys.
+    notes: Secrets redacted via `display_dict`; diagnostics never echo API keys.
   performance:
     status: PASS
     notes: Configuration loads are in-memory and parse small files only when requested.
@@ -52,9 +51,9 @@ nfr_validation:
     notes: Validator returns structured remediation for missing keys; loader falls back cleanly.
   maintainability:
     status: PASS
-    notes: Config modules centralized under legacy_web_mcp.config with regression coverage.
+    notes: Config modules centralized under `legacy_web_mcp.config` with regression coverage.
 evidence:
-  tests_reviewed: 7
+  tests_reviewed: 8
   risks_identified: 2
   trace:
     ac_covered:
@@ -64,14 +63,13 @@ evidence:
     - 4
     - 5
     - 6
-    ac_gaps:
-    - 3
+    ac_gaps: []
 recommendations:
   immediate: []
   future:
-  - action: Add automated FastMCP integration test asserting `show_config` redaction to retire manual step.
+  - action: Add CI guard or deployment smoke test to fail fast when required env keys are absent.
     refs:
-    - tests/unit/test_server.py
+    - scripts/check_env.py
   - action: Evaluate secret scanning or schema enforcement for config override files.
     refs:
     - config/default.yaml
