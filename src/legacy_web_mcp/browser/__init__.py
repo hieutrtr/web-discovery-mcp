@@ -12,6 +12,7 @@ from .models import (
 )
 from .service import BrowserAutomationService
 from .navigation import PageContentData, PageNavigationError, PageNavigator
+from .network import NetworkMonitor, NetworkMonitorConfig, NetworkRequestData, NetworkTrafficSummary, RequestType
 from .session import BrowserSession, BrowserSessionFactory, managed_browser_session
 
 __all__ = [
@@ -32,6 +33,11 @@ __all__ = [
     "BrowserAutomationService",
     "PageNavigator",
     "PageContentData",
+    "NetworkMonitor",
+    "NetworkMonitorConfig",
+    "NetworkRequestData",
+    "NetworkTrafficSummary",
+    "RequestType",
     # Utilities
     "managed_browser_session",
 ]
