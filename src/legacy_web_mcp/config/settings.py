@@ -34,6 +34,11 @@ class MCPSettings(BaseSettings):
     # Browser defaults
     BROWSER_ENGINE: str = Field(default=_DEFAULT_BROWSER)
     MAX_CONCURRENT_PAGES: int = Field(default=_DEFAULT_MAX_CONCURRENCY)
+    BROWSER_HEADLESS: bool = Field(default=True)
+    BROWSER_VIEWPORT_WIDTH: int = Field(default=1280)
+    BROWSER_VIEWPORT_HEIGHT: int = Field(default=720)
+    BROWSER_TIMEOUT: float = Field(default=30.0)
+    BROWSER_USER_AGENT: str | None = Field(default=None)
 
     # Storage paths
     OUTPUT_ROOT: Path = Field(default=_DEFAULT_OUTPUT_ROOT)
