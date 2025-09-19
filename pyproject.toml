@@ -68,3 +68,8 @@ dev-dependencies = [
     "pytest-asyncio==1.2.0",
     "bandit==1.7.9",
 ]
+
+[dependency-groups]
+dev = [
+    "types-pyyaml>=6.0.12.20250915",
+]

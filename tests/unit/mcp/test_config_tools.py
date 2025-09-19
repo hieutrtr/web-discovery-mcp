@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-import pytest
 from typing import cast
 
+import pytest
 from fastmcp import Context
 from fastmcp.tools.tool import FunctionTool
 

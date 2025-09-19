@@ -11,11 +11,13 @@ class StubFetcher:
         self._responses = responses
 
     async def fetch(self, url: str) -> FetchResult:
-        return self._responses.get(url, FetchResult(url=url, status=404, text="", content_type=None))
+        return self._responses.get(
+            url, FetchResult(url=url, status=404, text="", content_type=None)
+        )
 
 
 @pytest.mark.asyncio()
-async def test_fetch_sitemaps_handles_index_and_url(tmp_path) -> None:
+async def test_fetch_sitemaps_handles_index_and_url(tmp_path: str) -> None:
     base = "https://example.com"
     fetcher = StubFetcher(
         responses={

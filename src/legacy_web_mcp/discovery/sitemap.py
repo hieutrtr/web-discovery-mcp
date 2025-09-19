@@ -2,15 +2,13 @@
 from __future__ import annotations
 
 import xml.etree.ElementTree as ET
+from collections import deque
 from collections.abc import Iterable
-from typing import Any
 from urllib.parse import urljoin
 
 import structlog
 
-from collections import deque
-
-from legacy_web_mcp.discovery.http import FetchResult, Fetcher
+from legacy_web_mcp.discovery.http import Fetcher, FetchResult
 from legacy_web_mcp.discovery.utils import dedupe_preserve_order
 
 _LOGGER = structlog.get_logger(__name__)

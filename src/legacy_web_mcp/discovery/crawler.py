@@ -2,13 +2,13 @@
 from __future__ import annotations
 
 from collections import deque
+from collections.abc import Iterable
 from html.parser import HTMLParser
-from typing import Iterable
 from urllib.parse import urljoin, urlparse
 
 import structlog
 
-from legacy_web_mcp.discovery.http import FetchResult, Fetcher
+from legacy_web_mcp.discovery.http import Fetcher
 from legacy_web_mcp.discovery.robots import RobotsAnalysis
 
 _LOGGER = structlog.get_logger(__name__)
@@ -22,7 +22,9 @@ class LinkExtractor(HTMLParser):
         self.base_url = base_url
         self.links: list[str] = []
 
-    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:  # pragma: no cover - HTMLParser base method
+    def handle_starttag(
+        self, tag: str, attrs: list[tuple[str, str | None]]
+    ) -> None:  # pragma: no cover - HTMLParser base method
         if tag.lower() != "a":
             return
         for attr, value in attrs:

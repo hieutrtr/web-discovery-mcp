@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import cast
 
 import pytest
 
@@ -9,6 +10,7 @@ from legacy_web_mcp.config.settings import MCPSettings
 from legacy_web_mcp.discovery.http import FetchResult
 from legacy_web_mcp.discovery.pipeline import WebsiteDiscoveryService
 from legacy_web_mcp.storage.projects import ProjectStore
+from fastmcp import Context
 
 
 class StubFetcher:
@@ -16,7 +18,9 @@ class StubFetcher:
         self._responses = responses
 
     async def fetch(self, url: str) -> FetchResult:
-        return self._responses.get(url, FetchResult(url=url, status=404, text="", content_type=None))
+        return self._responses.get(
+            url, FetchResult(url=url, status=404, text="", content_type=None)
+        )
 
 
 @dataclass
@@ -26,10 +30,10 @@ class DummyContext:
     def __init__(self) -> None:
         self.messages = []
 
-    def report_progress(self, message: str) -> None:
+    async def info(self, message: str) -> None:
         self.messages.append(message)
 
-    def error(self, message: str) -> None:
+    async def error(self, message: str) -> None:
         self.messages.append(f"error:{message}")
 
 
@@ -62,7 +66,7 @@ Sitemap: https://example.com/sitemap.xml
     fetcher = StubFetcher(responses)
     store = ProjectStore(tmp_path)
     service = WebsiteDiscoveryService(settings, project_store=store, fetcher=fetcher)
-    context = DummyContext()
+    context = cast(Context, DummyContext())
 
     result = await service.discover(context, "https://example.com")
 
@@ -71,7 +75,8 @@ Sitemap: https://example.com/sitemap.xml
     assert result["sources"]["crawl"] is False
     inventory_json = Path(result["paths"]["inventory_json"])
     assert inventory_json.exists()
-    assert context.messages[0].startswith("Validated target URL")
+    dummy_context = cast(DummyContext, context)
+    assert dummy_context.messages[0].startswith("Validated target URL")
 
 
 @pytest.mark.asyncio()
@@ -100,9 +105,10 @@ async def test_discovery_pipeline_uses_crawl_when_no_sitemap(tmp_path: Path) -> 
     fetcher = StubFetcher(responses)
     store = ProjectStore(tmp_path)
     service = WebsiteDiscoveryService(settings, project_store=store, fetcher=fetcher)
-    context = DummyContext()
+    context = cast(Context, DummyContext())
 
     result = await service.discover(context, "https://example.org")
     assert result["sources"]["crawl"] is True
     assert result["summary"]["total"] >= 1
-    assert any("Manual crawl" in message for message in context.messages)
+    dummy_context = cast(DummyContext, context)
+    assert any("Manual crawl" in message for message in dummy_context.messages)

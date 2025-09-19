@@ -4,10 +4,10 @@ from __future__ import annotations
 import json
 import re
 import shutil
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 from urllib.parse import urlparse
 
 import structlog
@@ -66,7 +66,9 @@ class ProjectMetadata:
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
-    def with_discovered_count(self, count: int, *, updated_at: datetime | None = None) -> ProjectMetadata:
+    def with_discovered_count(
+        self, count: int, *, updated_at: datetime | None = None
+    ) -> ProjectMetadata:
         updated = updated_at or datetime.now(tz=UTC)
         return ProjectMetadata(
             project_id=self.project_id,
@@ -95,7 +97,7 @@ class ProjectStore:
         (self._root / _ARCHIVE_FOLDER_NAME).mkdir(exist_ok=True)
 
     @classmethod
-    def from_settings(cls, settings: MCPSettings) -> "ProjectStore":
+    def from_settings(cls, settings: MCPSettings) -> ProjectStore:
         return cls(settings.OUTPUT_ROOT)
 
     @property
@@ -223,7 +225,9 @@ class ProjectStore:
         )
         return ProjectRecord(paths=project.paths, metadata=updated_metadata)
 
-    def cleanup_project(self, project_id: str, *, delete: bool = False, confirm: bool = False) -> Path:
+    def cleanup_project(
+        self, project_id: str, *, delete: bool = False, confirm: bool = False
+    ) -> Path:
         """Archive or delete a project directory after explicit confirmation."""
 
         if not confirm:

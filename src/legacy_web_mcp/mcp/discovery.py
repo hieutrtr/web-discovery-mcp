@@ -11,7 +11,10 @@ from legacy_web_mcp.storage import create_project_store
 def register(mcp: FastMCP) -> None:
     """Register discovery tool with the MCP instance."""
 
-    @mcp.tool(name="discover_website", description="Discover site structure via sitemap/crawl tooling.")
+    @mcp.tool(
+        name="discover_website",
+        description="Discover site structure via sitemap/crawl tooling."
+    )
     async def discover_website(context: Context, url: str) -> dict[str, object]:
         settings = load_configuration()
         project_store = create_project_store(settings)
@@ -20,7 +23,7 @@ def register(mcp: FastMCP) -> None:
             return await service.discover(context, url)
         except InvalidTargetURL as exc:
             message = str(exc)
-            context.error(message)
+            await context.error(message)
             raise ValueError(message) from exc
 
 

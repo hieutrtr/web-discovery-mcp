@@ -77,18 +77,23 @@ def test_list_projects_returns_metadata_sorted(store: ProjectStore, tmp_path: Pa
     )
 
     metadata_list = store.list_projects()
-    assert [item.project_id for item in metadata_list] == [later.paths.project_id, earlier.paths.project_id]
+    expected_order = [later.paths.project_id, earlier.paths.project_id]
+    assert [item.project_id for item in metadata_list] == expected_order
 
 
 def test_cleanup_requires_confirmation(store: ProjectStore) -> None:
-    record = store.initialize_project("confirm.test", configuration_snapshot={}, created_at=_fixed_now())
+    record = store.initialize_project(
+        "confirm.test", configuration_snapshot={}, created_at=_fixed_now()
+    )
 
     with pytest.raises(PermissionError):
         store.cleanup_project(record.paths.project_id)
 
 
 def test_cleanup_archives_project(store: ProjectStore, tmp_path: Path) -> None:
-    record = store.initialize_project("archive.test", configuration_snapshot={}, created_at=_fixed_now())
+    record = store.initialize_project(
+        "archive.test", configuration_snapshot={}, created_at=_fixed_now()
+    )
 
     destination = store.cleanup_project(record.paths.project_id, confirm=True)
     archive_root = tmp_path / "archive"
@@ -98,7 +103,9 @@ def test_cleanup_archives_project(store: ProjectStore, tmp_path: Path) -> None:
 
 
 def test_cleanup_deletes_project(store: ProjectStore) -> None:
-    record = store.initialize_project("delete.test", configuration_snapshot={}, created_at=_fixed_now())
+    record = store.initialize_project(
+        "delete.test", configuration_snapshot={}, created_at=_fixed_now()
+    )
 
     destination = store.cleanup_project(record.paths.project_id, delete=True, confirm=True)
     assert destination == record.paths.root

@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Iterable
 from urllib import robotparser
 from urllib.parse import urljoin
 
@@ -39,13 +38,24 @@ async def analyze_robots(fetcher: Fetcher, base_url: str) -> RobotsAnalysis:
     lines = result.text.splitlines()
     parser.parse(lines)
 
-    sitemap_urls = [line.split(":", 1)[1].strip() for line in lines if line.lower().startswith("sitemap:")]
-    allowed_paths = [line.split(":", 1)[1].strip() for line in lines if line.lower().startswith("allow:")]
+    sitemap_urls = [
+        line.split(":", 1)[1].strip()
+        for line in lines
+        if line.lower().startswith("sitemap:")
+    ]
+    allowed_paths = [
+        line.split(":", 1)[1].strip()
+        for line in lines
+        if line.lower().startswith("allow:")
+    ]
 
     sitemap_urls = dedupe_preserve_order(sitemap_urls)
     allowed_paths = dedupe_preserve_order(allowed_paths)
 
-    full_sitemaps = [url if url.startswith("http") else urljoin(base_url, url) for url in sitemap_urls]
+    full_sitemaps = [
+        url if url.startswith("http") else urljoin(base_url, url)
+        for url in sitemap_urls
+    ]
     _LOGGER.info(
         "robots_analyzed",
         sitemap_count=len(full_sitemaps),

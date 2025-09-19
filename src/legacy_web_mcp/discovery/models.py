@@ -88,7 +88,9 @@ class DiscoveryInventory:
             "assets": [],
         }
         for entry in self.urls:
-            buckets[entry.category() + "s" if entry.category() != "asset" else "assets"].append(entry.to_dict())
+            category = entry.category()
+            bucket_key = category + "s" if category != "asset" else "assets"
+            buckets[bucket_key].append(entry.to_dict())
         for bucket in buckets.values():
             bucket.sort(key=lambda item: (item["depth"], item["url"]))
         return buckets

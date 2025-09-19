@@ -1,8 +1,9 @@
 """Website discovery orchestration."""
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Any, Iterable
+from typing import Any
 
 import structlog
 from fastmcp import Context
@@ -11,11 +12,11 @@ from legacy_web_mcp.config.settings import MCPSettings
 from legacy_web_mcp.discovery.crawler import crawl
 from legacy_web_mcp.discovery.http import AiohttpFetcher, Fetcher
 from legacy_web_mcp.discovery.models import (
-    DiscoveryInventory,
     DiscoveredURL,
+    DiscoveryInventory,
     build_summary,
 )
-from legacy_web_mcp.discovery.robots import RobotsAnalysis, analyze_robots
+from legacy_web_mcp.discovery.robots import analyze_robots
 from legacy_web_mcp.discovery.sitemap import fetch_sitemaps
 from legacy_web_mcp.discovery.utils import (
     InvalidTargetURL,
@@ -28,7 +29,7 @@ from legacy_web_mcp.discovery.utils import (
     normalize_url,
     timestamp_now,
 )
-from legacy_web_mcp.storage.projects import ProjectRecord, ProjectStore
+from legacy_web_mcp.storage.projects import ProjectStore
 
 _LOGGER = structlog.get_logger(__name__)
 
@@ -59,17 +60,17 @@ class WebsiteDiscoveryService:
 
     async def discover(self, context: Context, target_url: str) -> dict[str, Any]:
         normalized = normalize_url(target_url)
-        context.report_progress(f"Validated target URL: {normalized.url}")
+        await context.info(f"Validated target URL: {normalized.url}")
 
         project = self._project_store.initialize_project(
             normalized.domain,
             configuration_snapshot=self._settings.display_dict(),
             created_at=timestamp_now(),
         )
-        context.report_progress(f"Initialized project {project.paths.project_id}")
+        await context.info(f"Initialized project {project.paths.project_id}")
 
         robots = await analyze_robots(self._fetcher, normalized.url)
-        context.report_progress("Analyzed robots.txt directives")
+        await context.info("Analyzed robots.txt directives")
 
         sitemap_urls, sitemap_errors = await fetch_sitemaps(
             self._fetcher,
@@ -77,15 +78,19 @@ class WebsiteDiscoveryService:
             additional_candidates=robots.sitemap_urls,
         )
         if sitemap_urls:
-            context.report_progress(f"Parsed sitemap URLs ({len(sitemap_urls)})")
+            await context.info(f"Parsed sitemap URLs ({len(sitemap_urls)})")
         elif sitemap_errors:
-            context.report_progress("No sitemap URLs discovered; will use crawl fallback")
+            await context.info("No sitemap URLs discovered; will use crawl fallback")
 
-        records = {}
+        records: dict[str, DiscoveredURL] = {}
         self._ingest(records, sitemap_urls, normalized.domain, source="sitemap", depth=0)
 
-        allowed_from_robots = [absolute_url(normalized.url, path) for path in robots.allowed_paths]
-        self._ingest(records, allowed_from_robots, normalized.domain, source="robots_allow", depth=0)
+        allowed_from_robots = [
+            absolute_url(normalized.url, path) for path in robots.allowed_paths
+        ]
+        self._ingest(
+            records, allowed_from_robots, normalized.domain, source="robots_allow", depth=0
+        )
 
         crawl_records: list[tuple[str, int, str]] = []
         used_crawl = False
@@ -99,9 +104,9 @@ class WebsiteDiscoveryService:
             )
             if crawl_records:
                 used_crawl = True
-                context.report_progress(f"Manual crawl discovered {len(crawl_records)} URLs")
+                await context.info(f"Manual crawl discovered {len(crawl_records)} URLs")
             else:
-                context.report_progress("Manual crawl completed with no additional URLs")
+                await context.info("Manual crawl completed with no additional URLs")
 
         self._ingest_records(records, crawl_records, normalized.domain)
 
@@ -126,7 +131,7 @@ class WebsiteDiscoveryService:
             inventory.to_dict(),
             discovered_count=summary.total_urls,
         )
-        context.report_progress("Persisted URL inventory to project storage")
+        await context.info("Persisted URL inventory to project storage")
         _LOGGER.info(
             "discovery_completed",
             project_id=project.paths.project_id,
