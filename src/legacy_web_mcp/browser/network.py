@@ -331,6 +331,7 @@ class NetworkMonitor:
             r'/rest/',
             r'/service/',
             r'\.json',
+            r'/json',
             r'/graphql',
         ]
         if any(re.search(pattern, url) for pattern in api_patterns):
