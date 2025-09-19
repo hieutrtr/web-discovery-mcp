@@ -13,6 +13,7 @@ from .models import (
 from .service import BrowserAutomationService
 from .navigation import PageContentData, PageNavigationError, PageNavigator
 from .network import NetworkMonitor, NetworkMonitorConfig, NetworkRequestData, NetworkTrafficSummary, RequestType
+from .interaction import InteractionConfig, InteractionLog, InteractionStatus, InteractionType, PageInteractionAutomator, ElementInfo
 from .session import BrowserSession, BrowserSessionFactory, managed_browser_session
 
 __all__ = [
@@ -38,6 +39,12 @@ __all__ = [
     "NetworkRequestData",
     "NetworkTrafficSummary",
     "RequestType",
+    "InteractionConfig",
+    "InteractionLog",
+    "InteractionStatus",
+    "InteractionType",
+    "PageInteractionAutomator",
+    "ElementInfo",
     # Utilities
     "managed_browser_session",
 ]
