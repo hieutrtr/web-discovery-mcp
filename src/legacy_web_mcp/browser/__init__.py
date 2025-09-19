@@ -11,6 +11,7 @@ from .models import (
     SessionStatus,
 )
 from .service import BrowserAutomationService
+from .navigation import PageContentData, PageNavigationError, PageNavigator
 from .session import BrowserSession, BrowserSessionFactory, managed_browser_session
 
 __all__ = [
@@ -24,10 +25,13 @@ __all__ = [
     "BrowserSessionError",
     "BrowserCrashError",
     "SessionLimitExceededError",
+    "PageNavigationError",
     # Core classes
     "BrowserSession",
     "BrowserSessionFactory",
     "BrowserAutomationService",
+    "PageNavigator",
+    "PageContentData",
     # Utilities
     "managed_browser_session",
 ]
