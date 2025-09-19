@@ -66,6 +66,14 @@ Detailed architectural guidance lives in `docs/architecture.md` and related docu
   The `show_config` tool backs the health summary and can be called directly in MCP-aware IDEs.
 
 - Default output folders, concurrency limits, and timeouts are documented in `config/default.yaml` and `docs/stories/1.3.basic-configuration-management.md`.
+- Validate deployment environments with the automated checker:
+
+  ```bash
+  uv run python scripts/check_env.py          # Fails if mandatory STEP/LLM keys are missing
+  uv run python scripts/check_env.py --quiet  # Same check with no success output
+  ```
+
+  Supply `--keys` to verify a custom subset during local debugging.
 
 ## Continuous Integration
 
