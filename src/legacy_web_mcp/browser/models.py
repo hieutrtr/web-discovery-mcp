@@ -4,7 +4,6 @@ from __future__ import annotations
 import asyncio
 from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
@@ -35,7 +34,7 @@ class BrowserSessionConfig(BaseModel):
     viewport_width: int = Field(default=1280)
     viewport_height: int = Field(default=720)
     timeout: float = Field(default=30.0)
-    user_agent: Optional[str] = Field(default=None)
+    user_agent: str | None = Field(default=None)
     extra_args: list[str] = Field(default_factory=list)
 
 
@@ -48,9 +47,9 @@ class SessionMetrics(BaseModel):
     created_at: datetime
     pages_loaded: int = Field(default=0)
     total_load_time: float = Field(default=0.0)
-    memory_usage_mb: Optional[float] = Field(default=None)
+    memory_usage_mb: float | None = Field(default=None)
     crash_count: int = Field(default=0)
-    last_activity: Optional[datetime] = Field(default=None)
+    last_activity: datetime | None = Field(default=None)
 
     @property
     def average_load_time(self) -> float:
@@ -70,7 +69,7 @@ class SessionMetrics(BaseModel):
 class BrowserSessionError(Exception):
     """Base exception for browser session errors."""
 
-    def __init__(self, message: str, session_id: Optional[str] = None):
+    def __init__(self, message: str, session_id: str | None = None):
         super().__init__(message)
         self.session_id = session_id
 

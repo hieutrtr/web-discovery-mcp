@@ -1,9 +1,7 @@
 """Unified LLM engine with multi-provider support and failover."""
 from __future__ import annotations
 
-import asyncio
-from datetime import UTC, datetime
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import structlog
 
@@ -20,7 +18,6 @@ from .models import (
     LLMResponse,
     ProviderConfig,
     ProviderHealth,
-    ProviderHealthStatus,
 )
 from .providers import AnthropicProvider, GeminiProvider, OpenAIProvider
 from .utils import HealthMonitor
@@ -33,10 +30,10 @@ class LLMEngine:
 
     def __init__(self, settings: MCPSettings):
         self.settings = settings
-        self.providers: Dict[LLMProvider, LLMProviderInterface] = {}
-        self.provider_configs: Dict[LLMProvider, ProviderConfig] = {}
+        self.providers: dict[LLMProvider, LLMProviderInterface] = {}
+        self.provider_configs: dict[LLMProvider, ProviderConfig] = {}
         self.health_monitor = HealthMonitor()
-        self.cost_tracking: List[CostTracking] = []
+        self.cost_tracking: list[CostTracking] = []
         self.config_manager = LLMConfigurationManager(settings)
         self._initialized = False
 
@@ -102,9 +99,9 @@ class LLMEngine:
     async def chat_completion(
         self,
         request: LLMRequest,
-        preferred_provider: Optional[LLMProvider] = None,
-        page_url: Optional[str] = None,
-        project_id: Optional[str] = None,
+        preferred_provider: LLMProvider | None = None,
+        page_url: str | None = None,
+        project_id: str | None = None,
     ) -> LLMResponse:
         """Execute a chat completion with configuration-based model selection and fallback."""
         if not self._initialized:
@@ -225,9 +222,9 @@ class LLMEngine:
 
     def _modify_chain_for_preferred_provider(
         self,
-        fallback_chain: List[Tuple[LLMProvider, str]],
+        fallback_chain: list[tuple[LLMProvider, str]],
         preferred_provider: LLMProvider,
-    ) -> List[Tuple[LLMProvider, str]]:
+    ) -> list[tuple[LLMProvider, str]]:
         """Modify fallback chain to prioritize preferred provider."""
         # Find models for preferred provider in the chain
         preferred_models = [
@@ -244,7 +241,7 @@ class LLMEngine:
         # Put preferred provider models first
         return preferred_models + other_models
 
-    def _get_provider_order(self, preferred_provider: Optional[LLMProvider] = None) -> List[LLMProvider]:
+    def _get_provider_order(self, preferred_provider: LLMProvider | None = None) -> list[LLMProvider]:
         """Get the order of providers to try, with preferred provider first."""
         available_providers = list(self.providers.keys())
 
@@ -276,14 +273,14 @@ class LLMEngine:
         else:
             return 1  # High priority
 
-    async def get_provider_health(self, provider: LLMProvider) -> Optional[ProviderHealth]:
+    async def get_provider_health(self, provider: LLMProvider) -> ProviderHealth | None:
         """Get health status for a specific provider."""
         if provider not in self.providers:
             return None
 
         return await self.providers[provider].check_health()
 
-    async def get_all_provider_health(self) -> Dict[LLMProvider, ProviderHealth]:
+    async def get_all_provider_health(self) -> dict[LLMProvider, ProviderHealth]:
         """Get health status for all providers."""
         health_status = {}
 
@@ -300,7 +297,7 @@ class LLMEngine:
 
         return health_status
 
-    async def validate_all_providers(self) -> Dict[LLMProvider, bool]:
+    async def validate_all_providers(self) -> dict[LLMProvider, bool]:
         """Validate API keys for all configured providers."""
         validation_results = {}
 
@@ -323,7 +320,7 @@ class LLMEngine:
 
         return validation_results
 
-    def get_total_cost(self, provider: Optional[LLMProvider] = None) -> float:
+    def get_total_cost(self, provider: LLMProvider | None = None) -> float:
         """Get total cost for all requests or specific provider."""
         if provider:
             return sum(
@@ -334,14 +331,14 @@ class LLMEngine:
         else:
             return sum(record.total_cost for record in self.cost_tracking)
 
-    def get_cost_breakdown(self) -> Dict[LLMProvider, float]:
+    def get_cost_breakdown(self) -> dict[LLMProvider, float]:
         """Get cost breakdown by provider."""
         breakdown = {}
         for provider in LLMProvider:
             breakdown[provider] = self.get_total_cost(provider)
         return breakdown
 
-    def get_usage_stats(self) -> Dict[str, Any]:
+    def get_usage_stats(self) -> dict[str, Any]:
         """Get comprehensive usage statistics."""
         # Get stats from both legacy tracking and configuration manager
         config_stats = self.config_manager.get_configuration_summary()
@@ -369,7 +366,7 @@ class LLMEngine:
             "recent_alerts": [alert.dict() for alert in self.config_manager.get_recent_alerts()],
         }
 
-    async def validate_configuration(self) -> Dict[str, Any]:
+    async def validate_configuration(self) -> dict[str, Any]:
         """Validate the current LLM configuration."""
         return {
             "model_validation": self.config_manager.validate_configuration(),
@@ -377,11 +374,11 @@ class LLMEngine:
             "configuration_summary": self.config_manager.get_configuration_summary(),
         }
 
-    def get_model_for_request_type(self, request_type: LLMRequestType) -> Tuple[LLMProvider, str]:
+    def get_model_for_request_type(self, request_type: LLMRequestType) -> tuple[LLMProvider, str]:
         """Get the configured model for a specific request type."""
         return self.config_manager.get_model_for_request_type(request_type)
 
-    def get_fallback_chain(self, request_type: LLMRequestType) -> List[Tuple[LLMProvider, str]]:
+    def get_fallback_chain(self, request_type: LLMRequestType) -> list[tuple[LLMProvider, str]]:
         """Get the fallback chain for a request type."""
         return self.config_manager.get_fallback_chain(request_type)
 

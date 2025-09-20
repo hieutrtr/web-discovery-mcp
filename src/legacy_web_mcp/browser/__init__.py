@@ -1,5 +1,13 @@
 """Browser automation package with Playwright session management."""
 
+from .interaction import (
+    ElementInfo,
+    InteractionConfig,
+    InteractionLog,
+    InteractionStatus,
+    InteractionType,
+    PageInteractionAutomator,
+)
 from .models import (
     BrowserCrashError,
     BrowserEngine,
@@ -10,10 +18,15 @@ from .models import (
     SessionMetrics,
     SessionStatus,
 )
-from .service import BrowserAutomationService
 from .navigation import PageContentData, PageNavigationError, PageNavigator
-from .network import NetworkMonitor, NetworkMonitorConfig, NetworkRequestData, NetworkTrafficSummary, RequestType
-from .interaction import InteractionConfig, InteractionLog, InteractionStatus, InteractionType, PageInteractionAutomator, ElementInfo
+from .network import (
+    NetworkMonitor,
+    NetworkMonitorConfig,
+    NetworkRequestData,
+    NetworkTrafficSummary,
+    RequestType,
+)
+from .service import BrowserAutomationService
 from .session import BrowserSession, BrowserSessionFactory, managed_browser_session
 
 __all__ = [

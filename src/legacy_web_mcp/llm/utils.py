@@ -4,8 +4,9 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import re
+from collections.abc import Callable
 from datetime import UTC, datetime
-from typing import Any, Callable, Dict, Optional, TypeVar
+from typing import Any, TypeVar
 
 import structlog
 from tenacity import (
@@ -49,7 +50,7 @@ class RetryConfig:
 async def retry_with_exponential_backoff(
     func: Callable[..., T],
     config: RetryConfig,
-    provider: Optional[LLMProvider] = None,
+    provider: LLMProvider | None = None,
     *args: Any,
     **kwargs: Any,
 ) -> T:
@@ -204,8 +205,8 @@ class HealthMonitor:
     """Monitors provider health and tracks metrics."""
 
     def __init__(self):
-        self.metrics: Dict[LLMProvider, Dict[str, Any]] = {}
-        self.last_health_check: Dict[LLMProvider, datetime] = {}
+        self.metrics: dict[LLMProvider, dict[str, Any]] = {}
+        self.last_health_check: dict[LLMProvider, datetime] = {}
 
     def record_success(self, provider: LLMProvider, response_time_ms: float) -> None:
         """Record a successful request."""

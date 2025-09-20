@@ -1,5 +1,4 @@
 """Tests for LLM models and data structures."""
-import pytest
 from datetime import UTC, datetime
 
 from legacy_web_mcp.llm.models import (

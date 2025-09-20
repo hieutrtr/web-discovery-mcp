@@ -25,18 +25,18 @@ And follows the testing patterns established in existing scripts like test_page_
 """
 
 import asyncio
-import json
+import shutil
 import sys
 import time
 from pathlib import Path
-import shutil
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from legacy_web_mcp.browser import BrowserAutomationService, BrowserEngine
-from legacy_web_mcp.browser.workflow import SequentialNavigationWorkflow, QueueStatus, PageProcessingStatus
+from legacy_web_mcp.browser import BrowserAutomationService
+from legacy_web_mcp.browser.workflow import QueueStatus, SequentialNavigationWorkflow
 from legacy_web_mcp.config.settings import MCPSettings
+
 
 def print_section(title: str) -> None:
     """Print a formatted section header."""

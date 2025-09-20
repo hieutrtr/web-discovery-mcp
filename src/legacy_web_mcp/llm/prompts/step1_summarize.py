@@ -3,6 +3,9 @@
 
 from __future__ import annotations
 
+import json
+from typing import Any
+
 CONTENT_SUMMARY_SYSTEM_PROMPT = """
 You are an expert software architect specializing in reverse-engineering and documenting legacy web applications for modernization. Your task is to analyze the provided web page content and structure to produce a concise, structured summary in JSON format.
 
@@ -17,7 +20,7 @@ Produce a JSON object that strictly adheres to the provided schema. Do not inclu
 """
 
 
-def create_content_summary_prompt(page_content: str, dom_structure: dict, url: str) -> str:
+def create_content_summary_prompt(page_content: str, dom_structure: dict[str, Any], url: str) -> str:
     """Constructs the prompt for the Step 1 Content Summarization analysis.
 
     Args:

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import time
-from typing import Any, Dict, List
+from typing import Any
 
 import aiohttp
 import structlog
@@ -156,7 +156,7 @@ class OpenAIProvider(LLMProviderInterface):
         except aiohttp.ClientError as e:
             raise TimeoutError(f"OpenAI API connection error: {e}", LLMProvider.OPENAI)
 
-    def _parse_response(self, response_data: Dict[str, Any], request: LLMRequest) -> LLMResponse:
+    def _parse_response(self, response_data: dict[str, Any], request: LLMRequest) -> LLMResponse:
         """Parse OpenAI API response into unified format."""
         try:
             choice = response_data["choices"][0]
@@ -260,7 +260,7 @@ class OpenAIProvider(LLMProviderInterface):
             model,
         )
 
-    def get_supported_models(self) -> List[str]:
+    def get_supported_models(self) -> list[str]:
         """Get list of supported OpenAI models."""
         return [
             "gpt-4",

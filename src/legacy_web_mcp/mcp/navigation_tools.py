@@ -1,13 +1,12 @@
 """MCP tools for page navigation and content extraction."""
 from __future__ import annotations
 
-from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 from fastmcp import Context, FastMCP
 
 from legacy_web_mcp.browser import BrowserAutomationService, BrowserEngine
-from legacy_web_mcp.browser.navigation import PageNavigator, PageNavigationError
+from legacy_web_mcp.browser.navigation import PageNavigationError, PageNavigator
 from legacy_web_mcp.config.loader import load_configuration
 from legacy_web_mcp.storage.projects import create_project_store
 
@@ -25,7 +24,7 @@ def register(mcp: FastMCP) -> None:
         take_screenshot: bool = True,
         wait_for_network_idle: bool = True,
         browser_engine: str = "chromium",
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Navigate to a URL and extract comprehensive page content.
 
         Performs full page navigation with content extraction including HTML source,
@@ -170,7 +169,7 @@ def register(mcp: FastMCP) -> None:
         context: Context,
         project_id: str,
         capture_screenshot: bool = False,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Extract content from an already loaded page without performing navigation.
 
         Extracts comprehensive page content from an existing browser session that has

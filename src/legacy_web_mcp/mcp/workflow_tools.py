@@ -1,9 +1,7 @@
 """MCP tools for sequential navigation workflow management."""
 from __future__ import annotations
 
-import json
-from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import structlog
 from fastmcp import Context, FastMCP
@@ -16,7 +14,7 @@ from legacy_web_mcp.storage.projects import create_project_store
 _logger = structlog.get_logger("legacy_web_mcp.mcp.workflow_tools")
 
 # Global workflow registry to track active workflows
-_active_workflows: Dict[str, SequentialNavigationWorkflow] = {}
+_active_workflows: dict[str, SequentialNavigationWorkflow] = {}
 
 
 def register(mcp: FastMCP) -> None:
@@ -25,7 +23,7 @@ def register(mcp: FastMCP) -> None:
     @mcp.tool()
     async def analyze_page_list(
         context: Context,
-        urls: List[str],
+        urls: list[str],
         project_id: str = "multi-page-analysis",
         max_retries_per_page: int = 3,
         include_network_monitoring: bool = True,
@@ -33,7 +31,7 @@ def register(mcp: FastMCP) -> None:
         enable_checkpointing: bool = True,
         checkpoint_interval: int = 5,
         max_concurrent_sessions: int = 3,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Process multiple pages in systematic sequence with queue management and error recovery.
 
         Orchestrates comprehensive analysis of multiple pages with intelligent queue management,
@@ -256,8 +254,8 @@ def register(mcp: FastMCP) -> None:
         context: Context,
         workflow_id: str,
         action: str,
-        project_id: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        project_id: str | None = None,
+    ) -> dict[str, Any]:
         """Control active workflow execution with pause, resume, stop, and skip operations.
 
         Provides runtime control over sequential navigation workflows including pause/resume
@@ -402,9 +400,9 @@ def register(mcp: FastMCP) -> None:
     async def resume_workflow_from_checkpoint(
         context: Context,
         project_id: str,
-        checkpoint_file: Optional[str] = None,
+        checkpoint_file: str | None = None,
         continue_from_last: bool = True,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Resume an interrupted workflow from saved checkpoint with full state restoration.
 
         Loads and resumes a previously interrupted sequential navigation workflow from
@@ -585,7 +583,7 @@ def register(mcp: FastMCP) -> None:
     @mcp.tool()
     async def list_active_workflows(
         context: Context,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """List all currently active workflows with status and progress information.
 
         Provides an overview of all running, paused, or recently completed workflows
@@ -678,7 +676,7 @@ def register(mcp: FastMCP) -> None:
             }
 
 
-def _analyze_error_patterns(failed_pages: List[Any]) -> Dict[str, Any]:
+def _analyze_error_patterns(failed_pages: list[Any]) -> dict[str, Any]:
     """Analyze error patterns in failed pages."""
     if not failed_pages:
         return {

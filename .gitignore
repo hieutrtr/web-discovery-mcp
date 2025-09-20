@@ -2,6 +2,8 @@
 .claude
 .gemini
 .crush
+.cursor
+web-bundles/
 docs/web_discovery
 
 # Python

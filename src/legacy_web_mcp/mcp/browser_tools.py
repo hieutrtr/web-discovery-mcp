@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from fastmcp import Context, FastMCP
 
-from legacy_web_mcp.browser import BrowserAutomationService, BrowserEngine, BrowserSessionConfig
+from legacy_web_mcp.browser import BrowserAutomationService, BrowserEngine
 from legacy_web_mcp.config.loader import load_configuration
 
 

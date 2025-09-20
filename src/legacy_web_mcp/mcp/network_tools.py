@@ -1,16 +1,15 @@
 """MCP tools for network traffic monitoring during page navigation."""
 from __future__ import annotations
 
-import json
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import structlog
 from fastmcp import FastMCP
 
 from legacy_web_mcp.browser import BrowserAutomationService
-from legacy_web_mcp.browser.network import NetworkMonitor, NetworkMonitorConfig
 from legacy_web_mcp.browser.navigation import PageNavigator
+from legacy_web_mcp.browser.network import NetworkMonitor, NetworkMonitorConfig
 from legacy_web_mcp.config.loader import load_configuration
 
 _logger = structlog.get_logger("legacy_web_mcp.mcp.network_tools")
@@ -24,8 +23,8 @@ def register(mcp: FastMCP) -> None:
         capture_payloads: bool = True,
         filter_static_assets: bool = True,
         max_payload_size: int = 10000,
-        session_id: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        session_id: str | None = None,
+    ) -> dict[str, Any]:
         """Monitor and analyze all network traffic during page navigation.
 
         Performs comprehensive network traffic monitoring during page load, capturing
@@ -162,8 +161,8 @@ def register(mcp: FastMCP) -> None:
     async def analyze_api_endpoints(
         url: str,
         include_payloads: bool = False,
-        session_id: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        session_id: str | None = None,
+    ) -> dict[str, Any]:
         """Discover and analyze API endpoints used by a webpage.
 
         Performs focused analysis of API communications by filtering network traffic
@@ -302,8 +301,8 @@ def register(mcp: FastMCP) -> None:
     @mcp.tool()
     async def monitor_third_party_services(
         url: str,
-        session_id: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        session_id: str | None = None,
+    ) -> dict[str, Any]:
         """Monitor and analyze third-party services used by a webpage.
 
         Identifies external services, tracking scripts, CDNs, and other third-party integrations.

@@ -1,15 +1,14 @@
 """Tests for LLM utilities."""
-import pytest
-from unittest.mock import AsyncMock, Mock
 import asyncio
+from unittest.mock import AsyncMock
+
+import pytest
 
 from legacy_web_mcp.llm.models import (
     AuthenticationError,
-    LLMError,
     LLMProvider,
     RateLimitError,
     TimeoutError,
-    ValidationError,
 )
 from legacy_web_mcp.llm.utils import (
     HealthMonitor,

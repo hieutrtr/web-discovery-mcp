@@ -5,12 +5,12 @@ from pathlib import Path
 from typing import cast
 
 import pytest
+from fastmcp import Context
 
 from legacy_web_mcp.config.settings import MCPSettings
 from legacy_web_mcp.discovery.http import FetchResult
 from legacy_web_mcp.discovery.pipeline import WebsiteDiscoveryService
 from legacy_web_mcp.storage.projects import ProjectStore
-from fastmcp import Context
 
 
 class StubFetcher:

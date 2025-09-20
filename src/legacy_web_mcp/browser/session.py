@@ -1,12 +1,11 @@
 """Browser session management with Playwright."""
 from __future__ import annotations
 
-import asyncio
 import time
 import uuid
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
-from typing import AsyncGenerator, Optional
 
 import structlog
 from playwright.async_api import Browser, BrowserContext, Page, Playwright, async_playwright
@@ -98,7 +97,7 @@ class BrowserSession:
             await self._handle_crash()
             raise BrowserCrashError(f"Navigation failed: {e}", self.session_id) from e
 
-    async def get_memory_usage(self) -> Optional[float]:
+    async def get_memory_usage(self) -> float | None:
         """Get current memory usage in MB."""
         try:
             # This is a simplified implementation
@@ -218,7 +217,7 @@ class BrowserSessionFactory:
         else:
             raise BrowserLaunchError(f"Unsupported browser engine: {config.engine}")
 
-    async def get_session(self, session_id: str) -> Optional[BrowserSession]:
+    async def get_session(self, session_id: str) -> BrowserSession | None:
         """Get an active session by ID."""
         return self._active_sessions.get(session_id)
 

@@ -20,19 +20,18 @@ import inspect
 import json
 import sys
 from pathlib import Path
-from typing import Any, Dict
-from contextlib import asynccontextmanager
-from contextvars import ContextVar
+from typing import Any
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from fastmcp import Context
-from legacy_web_mcp.mcp.server import create_mcp
 
 # Import the actual request context that FastMCP uses
 from mcp.server.lowlevel.server import request_ctx
 from mcp.shared.context import RequestContext
+
+from legacy_web_mcp.mcp.server import create_mcp
 
 
 class MockMCPSession:
@@ -72,7 +71,7 @@ class SimpleMCPClient:
         self.context = Context(self.mcp)
         self.mock_request_context = create_mock_request_context()
 
-    async def list_tools(self) -> Dict[str, Any]:
+    async def list_tools(self) -> dict[str, Any]:
         """List all available tools."""
         tools = await self.mcp.get_tools()
         return {name: {
@@ -81,7 +80,7 @@ class SimpleMCPClient:
             "enabled": tool.enabled
         } for name, tool in tools.items()}
 
-    async def call_tool(self, tool_name: str, arguments: Dict[str, Any]) -> Any:
+    async def call_tool(self, tool_name: str, arguments: dict[str, Any]) -> Any:
         """Call a specific tool with given arguments."""
         tools = await self.mcp.get_tools()
         if tool_name not in tools:
@@ -112,7 +111,7 @@ class SimpleMCPClient:
         except Exception as e:
             raise RuntimeError(f"Tool execution failed: {e}") from e
 
-    async def test_tool(self, tool_name: str, args: Dict[str, Any] = None) -> None:
+    async def test_tool(self, tool_name: str, args: dict[str, Any] = None) -> None:
         """Test a specific tool and print results."""
         if args is None:
             args = {}
@@ -124,7 +123,7 @@ class SimpleMCPClient:
         try:
             result = await self.call_tool(tool_name, args)
             print("✅ Success!")
-            print(f"📊 Result:")
+            print("📊 Result:")
             if isinstance(result, dict):
                 print(json.dumps(result, indent=2, default=str))
             else:

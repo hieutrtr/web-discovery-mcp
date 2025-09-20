@@ -1,6 +1,6 @@
 """Unit tests for network traffic monitoring functionality."""
 from datetime import UTC, datetime
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 

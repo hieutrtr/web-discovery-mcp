@@ -4,7 +4,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -38,18 +38,18 @@ class LLMMessage(BaseModel):
 
     role: LLMRole
     content: str
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class LLMRequest(BaseModel):
     """Unified request format for all LLM providers."""
 
-    messages: List[LLMMessage]
-    model: Optional[str] = None
-    max_tokens: Optional[int] = None
-    temperature: Optional[float] = None
+    messages: list[LLMMessage]
+    model: str | None = None
+    max_tokens: int | None = None
+    temperature: float | None = None
     request_type: LLMRequestType = LLMRequestType.CONTENT_SUMMARY
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class TokenUsage(BaseModel):
@@ -69,8 +69,8 @@ class LLMResponse(BaseModel):
     usage: TokenUsage
     request_id: str
     timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
-    cost_estimate: Optional[float] = None
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    cost_estimate: float | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class LLMError(Exception):
@@ -79,8 +79,8 @@ class LLMError(Exception):
     def __init__(
         self,
         message: str,
-        provider: Optional[LLMProvider] = None,
-        error_code: Optional[str] = None,
+        provider: LLMProvider | None = None,
+        error_code: str | None = None,
         retryable: bool = False
     ):
         super().__init__(message)
@@ -100,8 +100,8 @@ class RateLimitError(LLMError):
     def __init__(
         self,
         message: str,
-        provider: Optional[LLMProvider] = None,
-        retry_after: Optional[int] = None
+        provider: LLMProvider | None = None,
+        retry_after: int | None = None
     ):
         super().__init__(message, provider, retryable=True)
         self.retry_after = retry_after
@@ -115,7 +115,7 @@ class ValidationError(LLMError):
 class TimeoutError(LLMError):
     """Raised when request times out."""
 
-    def __init__(self, message: str, provider: Optional[LLMProvider] = None):
+    def __init__(self, message: str, provider: LLMProvider | None = None):
         super().__init__(message, provider, retryable=True)
 
 
@@ -139,11 +139,11 @@ class ProviderHealth(BaseModel):
     provider: LLMProvider
     status: ProviderHealthStatus
     last_check: datetime
-    response_time_ms: Optional[float] = None
+    response_time_ms: float | None = None
     error_rate: float = 0.0
     success_count: int = 0
     failure_count: int = 0
-    last_error: Optional[str] = None
+    last_error: str | None = None
 
 
 class ProviderConfig(BaseModel):
@@ -151,11 +151,11 @@ class ProviderConfig(BaseModel):
 
     provider: LLMProvider
     api_key: str
-    base_url: Optional[str] = None
-    model: Optional[str] = None
+    base_url: str | None = None
+    model: str | None = None
     max_retries: int = 3
     timeout: float = 30.0
-    rate_limit_rpm: Optional[int] = None
+    rate_limit_rpm: int | None = None
     enabled: bool = True
 
 
@@ -201,9 +201,23 @@ class LLMProviderInterface(ABC):
         pass
 
     @abstractmethod
-    def get_supported_models(self) -> List[str]:
+    def get_supported_models(self) -> list[str]:
         """Get list of supported models for this provider."""
         pass
+
+
+class ContentSummary(BaseModel):
+    """Step 1 LLM analysis output capturing page purpose and context."""
+
+    purpose: str = Field(description="Primary page purpose and business function")
+    user_context: str = Field(description="Target users and user journey context")
+    business_logic: str = Field(description="Core business rules and workflows")
+    navigation_role: str = Field(description="Page's role in overall site navigation")
+    confidence_score: float = Field(
+        description="Analysis confidence level (0.0-1.0)",
+        ge=0.0,
+        le=1.0
+    )
 
 
 __all__ = [
@@ -220,6 +234,7 @@ __all__ = [
     "ProviderHealth",
     "ProviderConfig",
     "CostTracking",
+    "ContentSummary",
     # Exceptions
     "LLMError",
     "AuthenticationError",
