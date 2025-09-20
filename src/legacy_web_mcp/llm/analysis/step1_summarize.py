@@ -3,6 +3,9 @@
 
 from __future__ import annotations
 
+import json
+from typing import Any
+
 import structlog
 
 from legacy_web_mcp.browser.analysis import PageAnalysisData
@@ -62,20 +65,111 @@ class ContentSummarizer:
         )
 
         try:
-            # Use the LLM engine to get a structured JSON response.
-            # The engine is expected to handle model selection, retries, and validation.
-            summary_json = await self.llm_engine.generate_json_response(
-                system_prompt=CONTENT_SUMMARY_SYSTEM_PROMPT,
-                user_prompt=prompt,
-                model_config_key="step1_model",
-                response_model=ContentSummary,
+            # Create a structured LLM request for JSON parsing
+            from legacy_web_mcp.llm.models import LLMMessage, LLMRequest, LLMRequestType, LLMRole
+            
+            messages = [
+                LLMMessage(role=LLMRole.SYSTEM, content=CONTENT_SUMMARY_SYSTEM_PROMPT),
+                LLMMessage(role=LLMRole.USER, content=prompt),
+            ]
+            
+            request = LLMRequest(
+                messages=messages,
+                request_type=LLMRequestType.CONTENT_SUMMARY,
+                metadata={"step": "step1", "model_config_key": "step1_model"}
             )
+            
+            # Use the LLM engine to get a structured JSON response via chat completion
+            response = await self.llm_engine.chat_completion(
+                request=request,
+                page_url=page_analysis_data.url
+            )
+            
+            # Parse the JSON response content
+            try:
+                # Try to extract JSON from the response content
+                content = response.content.strip()
+                
+                # Log the raw content for debugging
+                _logger.debug("Raw LLM response content", 
+                            content=content[:200] + "..." if len(content) > 200 else content)
+                
+                # Look for JSON block (handles cases where response might have markdown)
+                if "```json" in content and "```" in content:
+                    json_start = content.find("```json") + 7
+                    json_end = content.find("```", json_start)
+                    if json_end == -1:
+                        json_end = len(content)
+                    json_str = content[json_start:json_end].strip()
+                elif content.startswith("{") and content.endswith("}"):
+                    json_str = content
+                else:
+                    # Try to find JSON object in the content
+                    json_start = content.find("{")
+                    json_end = content.rfind("}") + 1
+                    if json_start != -1 and json_end > json_start:
+                        json_str = content[json_start:json_end]
+                    else:
+                        raise ValueError("No valid JSON found in response")
+                
+                summary_json = json.loads(json_str)
+                _logger.debug("Parsed JSON summary", summary_json=summary_json)
+                
+                # Normalize field names from LLM response to match ContentSummary model
+                def normalize_field(json_data: dict[str, Any]) -> dict[str, Any]:
+                    """Normalize field names from various LLM response formats."""
+                    normalized = {}
+                    
+                    # Convert all keys to lowercase for case-insensitive matching
+                    lowercase_data = {k.lower(): v for k, v in json_data.items()}
+                    
+                    # Map common variations in field names - using lowercase versions
+                    field_mappings = {
+                        'purpose': ['purpose', 'primary_purpose', 'primary purpose',
+                                   'main_purpose', 'main purpose'],
+                        'user_context': ['user_context', 'user context', 'target_users',
+                                         'target users', 'user_type', 'user type'],
+                        'business_logic': ['business_logic', 'business logic', 'core_logic',
+                                          'core logic', 'business_rules', 'business rules',
+                                          'functionality'],
+                        'navigation_role': ['navigation_role', 'navigation role', 'site_role',
+                                           'site role', 'page_role', 'page role']
+                    }
+                    
+                    for target_field, possible_sources in field_mappings.items():
+                        for source in possible_sources:
+                            if source in lowercase_data:
+                                normalized[target_field] = lowercase_data[source]
+                                break
+                        else:
+                            # If none of the sources found, use field name directly if present
+                            if target_field in json_data:
+                                normalized[target_field] = json_data[target_field]
+                            elif target_field in lowercase_data:
+                                normalized[target_field] = lowercase_data[target_field]
+                    
+                    # Copy other fields if they exist
+                    if 'confidence_score' in json_data:
+                        normalized['confidence_score'] = json_data['confidence_score']
+                    elif 'confidence_score' in lowercase_data:
+                        normalized['confidence_score'] = lowercase_data['confidence_score']
+                    
+                    return normalized
+                
+                # Normalize the JSON response
+                normalized_json = normalize_field(summary_json)
+                summary_json = normalized_json
+                
+                # Ensure confidence_score is present, default to 0.0
+                if "confidence_score" not in summary_json:
+                    summary_json["confidence_score"] = 0.0
+            except json.JSONDecodeError as e:
+                _logger.warning("Failed to parse JSON response, trying raw content", error=str(e))
+                summary_json = {"purpose": content, "user_context": "", 
+                                "business_logic": "", "navigation_role": content,
+                                "confidence_score": 0.0}
 
-            if not isinstance(summary_json, dict):
-                 raise TypeError(f"Expected a dict from LLM engine, but got {type(summary_json)}")
-
-            # The engine should have already validated against the Pydantic model,
-            # but we can instantiate it here.
+            # Validate and create ContentSummary instance
             content_summary = ContentSummary(**summary_json)
 
             # Compute confidence score
@@ -89,9 +183,10 @@ class ContentSummarizer:
                 "Content summarization failed",
                 url=page_analysis_data.url,
                 error=str(e),
+                error_type=type(e).__name__,
             )
             raise ContentSummarizationError(
-                f"Failed to summarize content for {page_analysis_data.url}"
+                f"Failed to summarize content for {page_analysis_data.url}: {str(e)}"
             ) from e
 
     def _calculate_confidence(self, summary: ContentSummary) -> float:
@@ -104,7 +199,6 @@ class ContentSummarizer:
             A confidence score between 0.0 and 1.0.
         """
         score = 1.0
-        num_fields = 5
         
         # Penalize for empty or placeholder-like fields
         if not summary.purpose or len(summary.purpose.split()) < 2:

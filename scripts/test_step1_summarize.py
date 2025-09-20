@@ -209,9 +209,12 @@ async def test_mcp_tools_integration(url: str = "https://example.com") -> bool:
         print_result(True, "summarize_page_content tool found")
 
         # Create a mock context (in real usage this would come from MCP client)
-        class MockContext(Context):
+        class MockContext:
             def __init__(self):
                 self.session_id = "test-session-123"
+            
+            async def error(self, message: str) -> None:
+                print(f"Context error: {message}")
 
         context = MockContext()
 

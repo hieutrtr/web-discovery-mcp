@@ -47,21 +47,17 @@ def register(mcp: FastMCP) -> None:
             project_store = create_project_store(config)
             llm_engine = LLMEngine(config)
 
-            project_metadata = project_store.get_project_metadata(project_id)
-            if not project_metadata:
-                project_metadata = project_store.create_project(
-                    project_id=project_id,
-                    website_url=url,
-                    config={"analysis_type": "content-summary"}
+            project_record = project_store.load_project(project_id)
+            if not project_record:
+                project_record = project_store.initialize_project(
+                    url,
+                    configuration_snapshot={"analysis_type": "content-summary"}
                 )
             
             analyzer = PageAnalyzer()
-            async with browser_service.get_session(
-                project_id=project_id,
-                engine=BrowserEngine(browser_engine),
-                headless=config.BROWSER_HEADLESS
-            ) as session:
-                page_data = await analyzer.analyze_page(session.page, url, project_metadata.root_path)
+            await browser_service.initialize()
+            page = await browser_service.navigate_page(project_id, url)
+            page_data = await analyzer.analyze_page(page, url, project_record.paths.root)
 
             summarizer = ContentSummarizer(llm_engine)
             content_summary = await summarizer.summarize_page(page_data)
@@ -100,21 +96,17 @@ def register(mcp: FastMCP) -> None:
             project_store = create_project_store(config)
             llm_engine = LLMEngine(config)
 
-            project_metadata = project_store.get_project_metadata(project_id)
-            if not project_metadata:
-                project_metadata = project_store.create_project(
-                    project_id=project_id,
-                    website_url=url,
-                    config={"analysis_type": "content-summary"}
+            project_record = project_store.load_project(project_id)
+            if not project_record:
+                project_record = project_store.initialize_project(
+                    url,
+                    configuration_snapshot={"analysis_type": "content-summary"}
                 )
             
             analyzer = PageAnalyzer()
-            async with browser_service.get_session(
-                project_id=project_id,
-                engine=BrowserEngine(browser_engine),
-                headless=config.BROWSER_HEADLESS
-            ) as session:
-                page_data = await analyzer.analyze_page(session.page, url, project_metadata.root_path)
+            await browser_service.initialize()
+            page = await browser_service.navigate_page(project_id, url)
+            page_data = await analyzer.analyze_page(page, url, project_record.paths.root)
 
             summarizer = ContentSummarizer(llm_engine)
             content_summary = await summarizer.summarize_page(page_data)

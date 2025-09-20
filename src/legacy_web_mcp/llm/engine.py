@@ -49,7 +49,7 @@ class LLMEngine:
                 config = ProviderConfig(
                     provider=LLMProvider.OPENAI,
                     api_key=self.settings.OPENAI_API_KEY.get_secret_value(),
-                    model="gpt-3.5-turbo",
+                    model="gpt-4.1-mini",
                 )
                 await provider.initialize(config)
                 self.providers[LLMProvider.OPENAI] = provider

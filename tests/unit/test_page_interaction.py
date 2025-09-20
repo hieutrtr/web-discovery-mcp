@@ -333,6 +333,8 @@ class TestPageInteractionAutomator:
             "type": "email",
             "name": "email",
         }.get(attr))
+        mock_input.is_visible = AsyncMock(return_value=True)
+        mock_input.is_enabled = AsyncMock(return_value=True)
         mock_input.fill = AsyncMock()
 
         mock_form.query_selector_all = AsyncMock(return_value=[mock_input])

@@ -92,9 +92,9 @@ class LLMConfigurationManager:
         except ValueError as e:
             _logger.warning("model_resolution_failed", error=str(e))
             # Use safe defaults
-            config.step1_model = "gpt-3.5-turbo"
+            config.step1_model = "gpt-4.1-mini"
             config.step1_provider = LLMProvider.OPENAI
-            config.step2_model = "gpt-4-turbo"
+            config.step2_model = "gpt-4.1-mini"
             config.step2_provider = LLMProvider.OPENAI
             config.fallback_model = "claude-3-haiku-20240307"
             config.fallback_provider = LLMProvider.ANTHROPIC

@@ -172,6 +172,7 @@ def calculate_token_cost(
     pricing = {
         LLMProvider.OPENAI: {
             "gpt-4": {"prompt": 0.03, "completion": 0.06},
+            "gpt-4.1-mini": {"prompt": 0.0004, "completion": 0.002},
             "gpt-4-turbo": {"prompt": 0.01, "completion": 0.03},
             "gpt-3.5-turbo": {"prompt": 0.0005, "completion": 0.0015},
         },

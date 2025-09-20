@@ -234,6 +234,14 @@ class PageInteractionAutomator:
         try:
             tag_name = await element.evaluate("el => el.tagName.toLowerCase()")
             text_content = await element.text_content()
+            
+            # Clean text content
+            if text_content:
+                text_content = text_content.strip()
+                # Skip elements with only whitespace
+                if not text_content or text_content.isspace():
+                    text_content = None
+            
             attributes = {}
 
             # Get common attributes
@@ -513,7 +521,8 @@ class PageInteractionAutomator:
 
     async def _interact_with_forms(self, page: Page, base_url: str, elements: list[ElementInfo]) -> None:
         """Safely interact with forms using sample data."""
-        form_elements = [
+        # Filter form-related elements from the discovered elements
+        form_related_elements = [
             elem for elem in elements
             if elem.element_type.startswith("input_") or elem.element_type in ["select", "textarea"]
         ]
@@ -543,9 +552,15 @@ class PageInteractionAutomator:
                         break
 
                     interaction_id = self._generate_interaction_id()
-                    tag_name = "unknown"  # Default value
-
+                    
                     try:
+                        # Check if element is actually interactive first
+                        is_visible = await input_element.is_visible()
+                        is_enabled = await input_element.is_enabled()
+                        
+                        if not is_visible or not is_enabled:
+                            continue
+                        
                         tag_name = await input_element.evaluate("el => el.tagName.toLowerCase()")
                         input_type = await input_element.get_attribute("type") or "text"
 
@@ -709,11 +724,16 @@ class PageInteractionAutomator:
             return page.locator(f"[data-testid='{element.attributes['data-testid']}']")
         elif element.attributes.get("id"):
             return page.locator(f"#{element.attributes['id']}")
-        elif element.text_content:
+        elif element.text_content and len(element.text_content.strip()) >= 3:
+            # Use text-based selector for meaningful content
             text_content = element.text_content[:50].replace('\n', ' ')
             return page.locator(f"{element.tag_name}:has-text('{text_content}')")
-        else:
+        elif element.selector and '.' in element.selector:
+            # Use original selector if it contains class information
             return page.locator(element.selector)
+        else:
+            # Fallback to basic tag name selector
+            return page.locator(element.tag_name)
 
     def _generate_interaction_id(self) -> str:
         """Generate a unique interaction ID."""

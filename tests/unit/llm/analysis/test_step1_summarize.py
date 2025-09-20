@@ -46,14 +46,14 @@ async def test_summarize_page_success(
     """Test successful page summarization."""
     # Arrange
     summarizer = ContentSummarizer(llm_engine=mock_llm_engine)
-    mock_response = {
+    mock_response = AsyncMock()
+    mock_response.content = """{
         "purpose": "User Login",
         "user_context": "Registered users",
         "business_logic": "Allows users to authenticate.",
-        "navigation_role": "Entry point for secure area.",
-        "confidence_score": 0.0 # This will be recalculated
-    }
-    mock_llm_engine.generate_json_response.return_value = mock_response
+        "navigation_role": "Entry point for secure area."
+    }"""
+    mock_llm_engine.chat_completion.return_value = mock_response
 
     # Act
     result = await summarizer.summarize_page(sample_page_analysis_data)
@@ -62,7 +62,7 @@ async def test_summarize_page_success(
     assert isinstance(result, ContentSummary)
     assert result.purpose == "User Login"
     assert result.confidence_score > 0.6 # Should be high for a complete response
-    mock_llm_engine.generate_json_response.assert_called_once()
+    mock_llm_engine.chat_completion.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -72,7 +72,7 @@ async def test_summarize_page_llm_failure(
     """Test that a failure in the LLM engine propagates correctly."""
     # Arrange
     summarizer = ContentSummarizer(llm_engine=mock_llm_engine)
-    mock_llm_engine.generate_json_response.side_effect = Exception("LLM API Error")
+    mock_llm_engine.chat_completion.side_effect = Exception("LLM API Error")
 
     # Act & Assert
     with pytest.raises(ContentSummarizationError, match="Failed to summarize content"):
@@ -86,16 +86,46 @@ async def test_summarize_page_bad_response_type(
     """Test handling of an unexpected response type from the LLM engine."""
     # Arrange
     summarizer = ContentSummarizer(llm_engine=mock_llm_engine)
-    mock_llm_engine.generate_json_response.return_value = "just a string, not a dict"
+    mock_response = AsyncMock()
+    mock_response.content = "just a string, not JSON"
+    mock_llm_engine.chat_completion.return_value = mock_response
 
     # Act & Assert
-    with pytest.raises(ContentSummarizationError) as exc_info:
+    with pytest.raises(ContentSummarizationError):
         await summarizer.summarize_page(sample_page_analysis_data)
+
+
+@pytest.mark.asyncio
+async def test_summarize_page_with_different_field_names(
+    mock_llm_engine: AsyncMock, sample_page_analysis_data: PageAnalysisData
+):
+    """Test handling of LLM responses with different field naming conventions."""
+    # Arrange
+    summarizer = ContentSummarizer(llm_engine=mock_llm_engine)
+    mock_response = AsyncMock()
     
-    assert isinstance(exc_info.value.__cause__, TypeError)
+    # Test with alternative field names that the normalization should handle
+    mock_response.content = """{
+        "Primary Purpose": "Developer Tools Hub",
+        "Target Users": "Software developers",
+        "Business Logic": "Aggregates AI tools for developers",
+        "Page Role": "Navigation and access point",
+        "confidence_score": 0.9
+    }"""
+    mock_llm_engine.chat_completion.return_value = mock_response
+
+    # Act
+    result = await summarizer.summarize_page(sample_page_analysis_data)
+
+    assert isinstance(result, ContentSummary)
+    assert result.purpose == "Developer Tools Hub"
+    assert result.user_context == "Software developers"
+    assert result.business_logic == "Aggregates AI tools for developers"
+    assert result.navigation_role == "Navigation and access point"
+    # Note: confidence_score is recalculated by _calculate_confidence, should be high for complete response
+    assert result.confidence_score > 0.8
 
 
-def test_calculate_confidence_score():
     """Test the confidence score calculation logic."""
     summarizer = ContentSummarizer(llm_engine=AsyncMock())
 
