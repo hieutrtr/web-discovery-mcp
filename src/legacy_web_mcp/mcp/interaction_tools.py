@@ -1,9 +1,8 @@
 """MCP tools for page interaction automation and discovery."""
 from __future__ import annotations
 
-import json
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import structlog
 from fastmcp import FastMCP
@@ -25,8 +24,8 @@ def register(mcp: FastMCP) -> None:
         enable_navigation_clicks: bool = True,
         enable_scrolling: bool = True,
         max_interactions: int = 50,
-        session_id: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        session_id: str | None = None,
+    ) -> dict[str, Any]:
         """Perform automated, safe interactions with a webpage to discover hidden functionality.
 
         Intelligently explores page elements including forms, navigation menus, interactive
@@ -178,8 +177,8 @@ def register(mcp: FastMCP) -> None:
     async def explore_navigation_menu(
         url: str,
         max_depth: int = 1,
-        session_id: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        session_id: str | None = None,
+    ) -> dict[str, Any]:
         """Explore navigation menus to discover additional pages and workflows.
 
         Focuses specifically on navigation elements like menus, nav bars, and
@@ -298,9 +297,9 @@ def register(mcp: FastMCP) -> None:
     async def test_form_interactions(
         url: str,
         safe_mode: bool = True,
-        custom_sample_data: Optional[Dict[str, List[str]]] = None,
-        session_id: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        custom_sample_data: dict[str, list[str]] | None = None,
+        session_id: str | None = None,
+    ) -> dict[str, Any]:
         """Test form interactions to discover validation rules and workflow behaviors.
 
         Safely fills forms with sample data to trigger validation messages,

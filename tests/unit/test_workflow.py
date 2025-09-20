@@ -4,8 +4,7 @@ from __future__ import annotations
 import asyncio
 import json
 from datetime import UTC, datetime
-from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -328,7 +327,7 @@ class TestSequentialNavigationWorkflow:
         assert expected_file.exists()
 
         # Verify content
-        with open(expected_file, "r", encoding="utf-8") as f:
+        with open(expected_file, encoding="utf-8") as f:
             saved_data = json.load(f)
 
         assert saved_data["url"] == "https://example.com"

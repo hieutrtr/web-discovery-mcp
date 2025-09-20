@@ -22,8 +22,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from legacy_web_mcp.browser import BrowserAutomationService, BrowserEngine
-from legacy_web_mcp.browser.interaction import PageInteractionAutomator, InteractionConfig
+from legacy_web_mcp.browser.interaction import InteractionConfig, PageInteractionAutomator
 from legacy_web_mcp.config.settings import MCPSettings
+
 
 def print_section(title: str) -> None:
     """Print a formatted section header."""

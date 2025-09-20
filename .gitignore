@@ -1,6 +1,8 @@
 .bmad-core
 .claude
 .gemini
+.cursor
+web-bundles/
 docs/web_discovery
 
 # Python

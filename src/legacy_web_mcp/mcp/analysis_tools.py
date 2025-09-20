@@ -2,8 +2,7 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 import structlog
 from fastmcp import Context, FastMCP
@@ -29,7 +28,7 @@ def register(mcp: FastMCP) -> None:
         url: str,
         project_id: str = "content-summary",
         browser_engine: str = "chromium",
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Performs Step 1 Content Summarization analysis on a single page.
 
         Args:
@@ -82,7 +81,7 @@ def register(mcp: FastMCP) -> None:
         url: str,
         project_id: str = "content-summary",
         browser_engine: str = "chromium",
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Performs Step 1 Content Summarization analysis on a single page.
 
         Args:
@@ -139,7 +138,7 @@ def register(mcp: FastMCP) -> None:
         include_performance_metrics: bool = True,
         save_analysis_data: bool = True,
         browser_engine: str = "chromium",
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Perform comprehensive page analysis combining all data collection capabilities.
 
         Executes a complete page analysis pipeline that combines navigation, network monitoring,
@@ -244,8 +243,8 @@ def register(mcp: FastMCP) -> None:
                     analysis_dir.mkdir(parents=True, exist_ok=True)
 
                     # Generate filename from URL
-                    from urllib.parse import urlparse
                     import hashlib
+                    from urllib.parse import urlparse
                     parsed = urlparse(url)
                     clean_path = "".join(c for c in parsed.path if c.isalnum() or c in "-_")[:50] or "index"
                     url_hash = hashlib.md5(url.encode()).hexdigest()[:8]
@@ -357,7 +356,7 @@ def register(mcp: FastMCP) -> None:
         extract_form_details: bool = True,
         project_id: str = "dom-analysis",
         browser_engine: str = "chromium",
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Analyze DOM structure focusing on element composition and interactive components.
 
         Performs detailed analysis of the Document Object Model structure, counting elements,
@@ -560,7 +559,7 @@ def register(mcp: FastMCP) -> None:
         include_version_detection: bool = True,
         project_id: str = "tech-detection",
         browser_engine: str = "chromium",
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Detect JavaScript frameworks, CSS frameworks, and web technologies used on a page.
 
         Performs comprehensive technology stack detection by analyzing JavaScript globals,
@@ -870,7 +869,7 @@ def _determine_modernization_priority(analysis_result) -> str:
     return "low"
 
 
-def _assess_accessibility_compliance(analysis_result) -> Dict[str, Any]:
+def _assess_accessibility_compliance(analysis_result) -> dict[str, Any]:
     """Assess accessibility compliance from analysis results."""
     violations = []
     score = 100
@@ -978,7 +977,7 @@ def _assess_heading_structure(accessibility_analysis) -> str:
     return "good"
 
 
-def _analyze_validation_patterns(form_details) -> Dict[str, Any]:
+def _analyze_validation_patterns(form_details) -> dict[str, Any]:
     """Analyze form validation patterns."""
     validation_summary = {
         "client_side_validation": False,
@@ -1022,7 +1021,7 @@ def _analyze_validation_patterns(form_details) -> Dict[str, Any]:
     return validation_summary
 
 
-def _assess_technology_modernization(tech_analysis, deep_scan_results, version_info) -> Dict[str, Any]:
+def _assess_technology_modernization(tech_analysis, deep_scan_results, version_info) -> dict[str, Any]:
     """Assess technology modernization needs."""
     priority = "low"
     recommendations = []

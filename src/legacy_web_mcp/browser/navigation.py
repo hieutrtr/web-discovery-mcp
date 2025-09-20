@@ -5,11 +5,12 @@ import re
 import time
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 from urllib.parse import urlparse
 
 import structlog
-from playwright.async_api import Page, TimeoutError as PlaywrightTimeoutError
+from playwright.async_api import Page
+from playwright.async_api import TimeoutError as PlaywrightTimeoutError
 
 from legacy_web_mcp.discovery.utils import normalize_url
 
@@ -19,7 +20,7 @@ _logger = structlog.get_logger("legacy_web_mcp.browser.navigation")
 class PageNavigationError(Exception):
     """Exception raised during page navigation."""
 
-    def __init__(self, message: str, url: str, status_code: Optional[int] = None):
+    def __init__(self, message: str, url: str, status_code: int | None = None):
         super().__init__(message)
         self.url = url
         self.status_code = status_code
@@ -34,12 +35,12 @@ class PageContentData:
         title: str,
         html_content: str,
         visible_text: str,
-        meta_data: Dict[str, Any],
+        meta_data: dict[str, Any],
         load_time: float,
         status_code: int,
         content_size: int,
-        screenshot_path: Optional[str] = None,
-        extracted_at: Optional[datetime] = None,
+        screenshot_path: str | None = None,
+        extracted_at: datetime | None = None,
     ):
         self.url = url
         self.title = title
@@ -52,7 +53,7 @@ class PageContentData:
         self.screenshot_path = screenshot_path
         self.extracted_at = extracted_at or datetime.now(UTC)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary representation."""
         return {
             "url": self.url,
@@ -87,7 +88,7 @@ class PageNavigator:
         self,
         page: Page,
         url: str,
-        project_root: Optional[Path] = None,
+        project_root: Path | None = None,
     ) -> PageContentData:
         """Navigate to URL and extract complete page content."""
         # Validate and normalize URL
@@ -136,13 +137,13 @@ class PageNavigator:
                 # Wait before retry
                 await page.wait_for_timeout(1000 * (attempt + 1))
 
-        raise PageNavigationError(f"Unexpected error during navigation", target_url)
+        raise PageNavigationError("Unexpected error during navigation", target_url)
 
     async def _attempt_navigation(
         self,
         page: Page,
         url: str,
-        project_root: Optional[Path],
+        project_root: Path | None,
         attempt: int,
     ) -> PageContentData:
         """Single navigation attempt."""
@@ -242,7 +243,7 @@ class PageNavigator:
             content_size=content_size,
         )
 
-    async def _extract_meta_data(self, page: Page) -> Dict[str, Any]:
+    async def _extract_meta_data(self, page: Page) -> dict[str, Any]:
         """Extract meta tags and other page metadata."""
         meta_data = {}
 

@@ -2,11 +2,8 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import cast
 
 import pytest
-from fastmcp import Context
-from fastmcp.tools.tool import FunctionTool
 
 from legacy_web_mcp.discovery.http import FetchResult
 from legacy_web_mcp.mcp import server

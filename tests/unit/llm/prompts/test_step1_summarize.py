@@ -7,6 +7,7 @@ import json
 
 from legacy_web_mcp.llm.prompts.step1_summarize import create_content_summary_prompt
 
+
 def test_create_content_summary_prompt_basic():
     """Test basic prompt creation."""
     page_content = "Welcome to our homepage. We sell widgets."

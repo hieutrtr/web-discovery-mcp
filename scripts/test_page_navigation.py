@@ -17,16 +17,17 @@ Commands:
 """
 
 import asyncio
+import shutil
 import sys
 from pathlib import Path
-import shutil
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from legacy_web_mcp.browser import BrowserAutomationService, BrowserEngine
-from legacy_web_mcp.browser.navigation import PageNavigator, PageNavigationError
+from legacy_web_mcp.browser.navigation import PageNavigationError, PageNavigator
 from legacy_web_mcp.config.settings import MCPSettings
+
 
 def print_section(title: str) -> None:
     """Print a formatted section header."""
@@ -62,7 +63,7 @@ async def test_successful_navigation():
         
         print_result(content_data.status_code == 200, f"Status code: {content_data.status_code}")
         # httpbin.org/html has an empty title
-        print_result(content_data.title == "", f"Title is empty as expected.")
+        print_result(content_data.title == "", "Title is empty as expected.")
         html_content_extracted = "<h1>Herman Melville - Moby-Dick</h1>" in content_data.html_content
         print_result(html_content_extracted, "HTML content extracted")
         print_result(len(content_data.visible_text) > 100, "Visible text extracted")

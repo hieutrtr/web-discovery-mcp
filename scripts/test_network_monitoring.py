@@ -28,6 +28,7 @@ from legacy_web_mcp.browser import BrowserAutomationService, BrowserEngine
 from legacy_web_mcp.browser.network import NetworkMonitor, NetworkMonitorConfig
 from legacy_web_mcp.config.settings import MCPSettings
 
+
 def print_section(title: str) -> None:
     """Print a formatted section header."""
     print(f"\n{'='*60}")

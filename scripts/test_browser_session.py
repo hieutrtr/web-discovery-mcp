@@ -30,7 +30,7 @@ import json
 import sys
 import time
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
@@ -38,7 +38,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 from legacy_web_mcp.browser import (
     BrowserAutomationService,
     BrowserEngine,
-    BrowserSessionConfig,
     SessionLimitExceededError,
 )
 from legacy_web_mcp.config.settings import MCPSettings
@@ -63,7 +62,7 @@ def print_result(success: bool, message: str) -> None:
     print(f"{emoji} {message}")
 
 
-def print_metrics(metrics: Dict[str, Any], prefix: str = "  ") -> None:
+def print_metrics(metrics: dict[str, Any], prefix: str = "  ") -> None:
     """Print metrics in a formatted way."""
     for key, value in metrics.items():
         if isinstance(value, dict):
@@ -73,7 +72,7 @@ def print_metrics(metrics: Dict[str, Any], prefix: str = "  ") -> None:
             print(f"{prefix}📊 {key}: {value}")
 
 
-async def test_browser_installation() -> Dict[str, Any]:
+async def test_browser_installation() -> dict[str, Any]:
     """Test browser installation validation."""
     print_test("Browser Installation Validation")
 
@@ -99,7 +98,7 @@ async def test_browser_installation() -> Dict[str, Any]:
         await service.shutdown()
 
 
-async def test_multi_engine_support() -> Dict[str, Any]:
+async def test_multi_engine_support() -> dict[str, Any]:
     """Test multi-engine browser support."""
     print_test("Multi-Engine Browser Support")
 
@@ -161,7 +160,7 @@ async def test_multi_engine_support() -> Dict[str, Any]:
         await service.shutdown()
 
 
-async def test_concurrency_control() -> Dict[str, Any]:
+async def test_concurrency_control() -> dict[str, Any]:
     """Test concurrency control and session limits."""
     print_test("Concurrency Control and Session Limits")
 
@@ -192,7 +191,7 @@ async def test_concurrency_control() -> Dict[str, Any]:
         })
 
         # Try to exceed limit
-        print(f"\n  🚫 Attempting to exceed limit...")
+        print("\n  🚫 Attempting to exceed limit...")
         try:
             await service.create_session(
                 project_id="concurrent-overflow",
@@ -205,7 +204,7 @@ async def test_concurrency_control() -> Dict[str, Any]:
             limit_enforced = True
 
         # Test navigation with concurrent sessions
-        print(f"\n  🌐 Testing navigation with concurrent sessions...")
+        print("\n  🌐 Testing navigation with concurrent sessions...")
         for i, (project_id, session) in enumerate(sessions):
             try:
                 page = await service.navigate_page(project_id, f"https://httpbin.org/delay/{i+1}")
@@ -215,7 +214,7 @@ async def test_concurrency_control() -> Dict[str, Any]:
                 print_result(False, f"Session {i+1} navigation failed: {e}")
 
         # Clean up sessions one by one and verify slot release
-        print(f"\n  🧹 Cleaning up sessions...")
+        print("\n  🧹 Cleaning up sessions...")
         for project_id, session in sessions:
             await service.close_session(project_id)
             current_metrics = await service.get_service_metrics()
@@ -237,7 +236,7 @@ async def test_concurrency_control() -> Dict[str, Any]:
         await service.shutdown()
 
 
-async def test_session_lifecycle() -> Dict[str, Any]:
+async def test_session_lifecycle() -> dict[str, Any]:
     """Test session lifecycle management."""
     print_test("Session Lifecycle Management")
 
@@ -280,7 +279,7 @@ async def test_session_lifecycle() -> Dict[str, Any]:
             await page.close()
 
         # Check session metrics
-        print(f"\n  📊 Session metrics after navigation:")
+        print("\n  📊 Session metrics after navigation:")
         metrics = session.metrics
         print_metrics({
             "Pages loaded": metrics.pages_loaded,
@@ -291,18 +290,18 @@ async def test_session_lifecycle() -> Dict[str, Any]:
         })
 
         # Test session retrieval
-        print(f"\n  🔍 Testing session retrieval...")
+        print("\n  🔍 Testing session retrieval...")
         retrieved_session = await service.get_session(project_id)
         session_found = retrieved_session is not None and retrieved_session.session_id == session.session_id
         print_result(session_found, f"Session retrieval: {session_found}")
 
         # Test context and pages
-        print(f"\n  📄 Testing context and pages...")
+        print("\n  📄 Testing context and pages...")
         context_pages = len(session.context.pages)
         print_result(True, f"Context has {context_pages} pages")
 
         # Close session
-        print(f"\n  🔚 Closing session...")
+        print("\n  🔚 Closing session...")
         await service.close_session(project_id)
         print_result(True, "Session closed")
 
@@ -324,7 +323,7 @@ async def test_session_lifecycle() -> Dict[str, Any]:
         await service.shutdown()
 
 
-async def test_crash_detection_recovery() -> Dict[str, Any]:
+async def test_crash_detection_recovery() -> dict[str, Any]:
     """Test crash detection and recovery mechanisms."""
     print_test("Crash Detection and Recovery")
 
@@ -405,7 +404,7 @@ async def test_crash_detection_recovery() -> Dict[str, Any]:
         await service.shutdown()
 
 
-async def test_performance_metrics() -> Dict[str, Any]:
+async def test_performance_metrics() -> dict[str, Any]:
     """Test performance metrics collection."""
     print_test("Performance Metrics Collection")
 
@@ -443,7 +442,7 @@ async def test_performance_metrics() -> Dict[str, Any]:
 
         # Get session metrics
         session_metrics = session.metrics
-        print(f"\n  📊 Session-level metrics:")
+        print("\n  📊 Session-level metrics:")
         print_metrics({
             "Session ID": session_metrics.session_id,
             "Engine": session_metrics.engine.value,
@@ -458,7 +457,7 @@ async def test_performance_metrics() -> Dict[str, Any]:
 
         # Get service-level metrics
         service_metrics = await service.get_service_metrics()
-        print(f"\n  📊 Service-level metrics:")
+        print("\n  📊 Service-level metrics:")
         print_metrics({
             "Active sessions": service_metrics['active_sessions'],
             "Max concurrent": service_metrics['max_concurrent'],
@@ -468,7 +467,7 @@ async def test_performance_metrics() -> Dict[str, Any]:
         })
 
         # Verify metrics accuracy
-        print(f"\n  🔍 Metrics verification:")
+        print("\n  🔍 Metrics verification:")
         expected_pages = len(test_scenarios)
         actual_pages = session_metrics.pages_loaded
         pages_accurate = expected_pages == actual_pages
@@ -500,7 +499,7 @@ async def test_performance_metrics() -> Dict[str, Any]:
         await service.shutdown()
 
 
-async def run_all_tests() -> Dict[str, Any]:
+async def run_all_tests() -> dict[str, Any]:
     """Run all browser session tests."""
     print_section("Browser Session Management Test Suite")
     print("Testing all features from Story 2.1: Playwright Browser Session Management")

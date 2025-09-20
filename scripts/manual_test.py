@@ -22,17 +22,18 @@ import asyncio
 import json
 import sys
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from fastmcp import Context
+from mcp.server.lowlevel.server import request_ctx
+from mcp.shared.context import RequestContext
+
 from legacy_web_mcp.config.loader import load_configuration
 from legacy_web_mcp.mcp.server import create_mcp
 from legacy_web_mcp.storage import create_project_store
-from mcp.server.lowlevel.server import request_ctx
-from mcp.shared.context import RequestContext
 
 
 class MockMCPSession:
@@ -74,7 +75,7 @@ class MCPTester:
         self.settings = load_configuration()
         self.project_store = create_project_store(self.settings)
 
-    async def call_tool(self, tool_name: str, arguments: Dict[str, Any]) -> Any:
+    async def call_tool(self, tool_name: str, arguments: dict[str, Any]) -> Any:
         """Call a specific tool with given arguments."""
         tools = await self.mcp.get_tools()
         if tool_name not in tools:
@@ -158,13 +159,13 @@ class MCPTester:
             print(f"🔗 External pages: {discovery_data['summary']['external_pages']}")
             print(f"📎 Assets: {discovery_data['summary']['assets']}")
 
-            print(f"\n📋 Discovery sources:")
+            print("\n📋 Discovery sources:")
             sources = discovery_data['sources']
             print(f"  📄 Sitemap: {'✅' if sources['sitemap'] else '❌'}")
             print(f"  🤖 Robots.txt: {'✅' if sources['robots'] else '❌'}")
             print(f"  🕷️  Crawling: {'✅' if sources['crawl'] else '❌'}")
 
-            print(f"\n📁 Project files:")
+            print("\n📁 Project files:")
             paths = discovery_data['paths']
             print(f"  📂 Root: {paths['root']}")
             print(f"  📄 JSON: {paths['inventory_json']}")

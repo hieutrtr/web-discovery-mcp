@@ -9,7 +9,17 @@ from typing import Final
 import structlog
 from fastmcp import FastMCP
 
-from legacy_web_mcp.mcp import analysis_tools, browser_tools, config_tools, diagnostics, discovery, interaction_tools, navigation_tools, network_tools, workflow_tools
+from legacy_web_mcp.mcp import (
+    analysis_tools,
+    browser_tools,
+    config_tools,
+    diagnostics,
+    discovery,
+    interaction_tools,
+    navigation_tools,
+    network_tools,
+    workflow_tools,
+)
 from legacy_web_mcp.shared.logging import configure_logging
 
 _SERVER_NAME: Final[str] = "Legacy Web MCP Server"

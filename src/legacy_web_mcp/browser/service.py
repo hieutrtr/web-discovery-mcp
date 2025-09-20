@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any, Dict, Optional
+from typing import Any
 
 import structlog
 from playwright.async_api import Page, Playwright, async_playwright
@@ -16,7 +16,6 @@ from .models import (
     BrowserSessionError,
     ConcurrencyController,
     SessionLimitExceededError,
-    SessionMetrics,
 )
 from .session import BrowserSession, BrowserSessionFactory
 
@@ -28,8 +27,8 @@ class BrowserAutomationService:
 
     def __init__(self, settings: MCPSettings):
         self.settings = settings
-        self.playwright: Optional[Playwright] = None
-        self.session_factory: Optional[BrowserSessionFactory] = None
+        self.playwright: Playwright | None = None
+        self.session_factory: BrowserSessionFactory | None = None
         self.concurrency_controller = ConcurrencyController(settings.MAX_CONCURRENT_PAGES)
         self._active_sessions: dict[str, BrowserSession] = {}
         self._recovery_attempts: dict[str, int] = {}
@@ -62,8 +61,8 @@ class BrowserAutomationService:
     async def create_session(
         self,
         project_id: str,
-        engine: Optional[BrowserEngine] = None,
-        headless: Optional[bool] = None,
+        engine: BrowserEngine | None = None,
+        headless: bool | None = None,
         **kwargs: Any,
     ) -> BrowserSession:
         """Create a new browser session with concurrency control."""
@@ -111,7 +110,7 @@ class BrowserAutomationService:
             )
             raise
 
-    async def get_session(self, project_id: str) -> Optional[BrowserSession]:
+    async def get_session(self, project_id: str) -> BrowserSession | None:
         """Get an existing session by project ID."""
         return self._active_sessions.get(project_id)
 
@@ -234,7 +233,7 @@ class BrowserAutomationService:
             )
             raise
 
-    async def get_service_metrics(self) -> Dict[str, Any]:
+    async def get_service_metrics(self) -> dict[str, Any]:
         """Get comprehensive service metrics."""
         session_metrics = {}
         total_pages = 0
@@ -264,7 +263,7 @@ class BrowserAutomationService:
             "sessions": session_metrics,
         }
 
-    async def validate_browser_installation(self) -> Dict[str, Any]:
+    async def validate_browser_installation(self) -> dict[str, Any]:
         """Validate that browser engines are properly installed."""
         if not self.playwright:
             await self.initialize()
@@ -282,7 +281,7 @@ class BrowserAutomationService:
                     "details": {"installed": True},
                 }
 
-            except Exception as e:
+            except Exception:
                 executable_path = self._get_browser_executable_path(engine)
                 results[engine.value] = {
                     "status": "unavailable",
@@ -296,7 +295,6 @@ class BrowserAutomationService:
 
     def _get_browser_executable_path(self, engine: BrowserEngine) -> str:
         """Get expected browser executable path."""
-        import os
         from pathlib import Path
 
         home = Path.home()

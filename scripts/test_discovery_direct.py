@@ -6,7 +6,6 @@ the underlying services, bypassing the MCP context requirements.
 """
 
 import asyncio
-import json
 import sys
 from pathlib import Path
 
@@ -79,13 +78,13 @@ async def test_discovery(url: str) -> None:
         print(f"  📎 Assets: {summary['assets']}")
 
         sources = result['sources']
-        print(f"\n📋 Discovery Sources:")
+        print("\n📋 Discovery Sources:")
         print(f"  📄 Sitemap: {'✅ Used' if sources['sitemap'] else '❌ Not found/used'}")
         print(f"  🤖 Robots.txt: {'✅ Used' if sources['robots'] else '❌ Not found/used'}")
         print(f"  🕷️  Crawling: {'✅ Used' if sources['crawl'] else '❌ Not used'}")
 
         paths = result['paths']
-        print(f"\n📁 Generated Files:")
+        print("\n📁 Generated Files:")
         print(f"  📂 Project root: {paths['root']}")
         print(f"  📄 JSON inventory: {paths['inventory_json']}")
         print(f"  📄 YAML inventory: {paths['inventory_yaml']}")
@@ -94,7 +93,7 @@ async def test_discovery(url: str) -> None:
         json_path = Path(paths['inventory_json'])
         yaml_path = Path(paths['inventory_yaml'])
 
-        print(f"\n📋 File Status:")
+        print("\n📋 File Status:")
         print(f"  📄 JSON exists: {'✅' if json_path.exists() else '❌'}")
         print(f"  📄 YAML exists: {'✅' if yaml_path.exists() else '❌'}")
 
@@ -105,7 +104,7 @@ async def test_discovery(url: str) -> None:
         if 'inventory' in result and 'urls' in result['inventory']:
             urls_data = result['inventory']['urls']
 
-            print(f"\n🔗 Sample URLs Found:")
+            print("\n🔗 Sample URLs Found:")
             for category, urls in urls_data.items():
                 if urls:
                     print(f"  📁 {category.replace('_', ' ').title()}: {len(urls)} URLs")
@@ -122,12 +121,12 @@ async def test_discovery(url: str) -> None:
         if 'errors' in result:
             errors = result['errors']
             if any(errors.values()):
-                print(f"\n⚠️  Errors encountered:")
+                print("\n⚠️  Errors encountered:")
                 for error_type, error_list in errors.items():
                     if error_list:
                         print(f"  {error_type}: {error_list}")
 
-        print(f"\n🎉 Discovery test completed successfully!")
+        print("\n🎉 Discovery test completed successfully!")
 
     except Exception as e:
         print(f"\n❌ Discovery test failed: {e}")

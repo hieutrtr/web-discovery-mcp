@@ -1,19 +1,18 @@
 """Unit tests for browser session management."""
 import asyncio
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 
 from legacy_web_mcp.browser import (
     BrowserEngine,
     BrowserSessionConfig,
-    BrowserSessionError,
     ConcurrencyController,
     SessionLimitExceededError,
     SessionStatus,
 )
 from legacy_web_mcp.browser.service import BrowserAutomationService
-from legacy_web_mcp.browser.session import BrowserSession, BrowserSessionFactory
+from legacy_web_mcp.browser.session import BrowserSession
 from legacy_web_mcp.config.settings import MCPSettings
 
 

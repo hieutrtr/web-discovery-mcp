@@ -1,11 +1,10 @@
 """Network traffic monitoring and analysis for browser sessions."""
 from __future__ import annotations
 
-import json
 import re
 from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 from urllib.parse import urlparse
 
 import structlog
@@ -33,18 +32,18 @@ class NetworkRequestData(BaseModel):
     url: str
     method: str
     request_type: RequestType
-    status_code: Optional[int] = None
-    headers: Dict[str, str] = Field(default_factory=dict)
-    request_payload: Optional[str] = None
-    response_payload: Optional[str] = None
-    timing: Dict[str, float] = Field(default_factory=dict)
+    status_code: int | None = None
+    headers: dict[str, str] = Field(default_factory=dict)
+    request_payload: str | None = None
+    response_payload: str | None = None
+    timing: dict[str, float] = Field(default_factory=dict)
     is_third_party: bool = False
-    third_party_domain: Optional[str] = None
-    content_type: Optional[str] = None
-    content_length: Optional[int] = None
+    third_party_domain: str | None = None
+    content_type: str | None = None
+    content_length: int | None = None
     timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary representation."""
         return {
             "url": self.url,
@@ -73,11 +72,11 @@ class NetworkTrafficSummary(BaseModel):
     failed_requests: int = 0
     total_bytes: int = 0
     average_response_time: float = 0.0
-    unique_domains: List[str] = Field(default_factory=list)
-    api_endpoints: List[str] = Field(default_factory=list)
-    third_party_domains: List[str] = Field(default_factory=list)
+    unique_domains: list[str] = Field(default_factory=list)
+    api_endpoints: list[str] = Field(default_factory=list)
+    third_party_domains: list[str] = Field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary representation."""
         return {
             "total_requests": self.total_requests,
@@ -102,7 +101,7 @@ class NetworkMonitorConfig(BaseModel):
     filter_static_assets: bool = True
     include_timing_data: bool = True
     redact_sensitive_data: bool = True
-    sensitive_patterns: List[str] = Field(default_factory=lambda: [
+    sensitive_patterns: list[str] = Field(default_factory=lambda: [
         r'password',
         r'token',
         r'key',
@@ -117,11 +116,11 @@ class NetworkMonitorConfig(BaseModel):
 class NetworkMonitor:
     """Monitors and captures network traffic during page navigation."""
 
-    def __init__(self, config: NetworkMonitorConfig, base_domain: Optional[str] = None):
+    def __init__(self, config: NetworkMonitorConfig, base_domain: str | None = None):
         self.config = config
         self.base_domain = base_domain
-        self.requests: List[NetworkRequestData] = []
-        self._active_requests: Dict[str, Dict[str, Any]] = {}
+        self.requests: list[NetworkRequestData] = []
+        self._active_requests: dict[str, dict[str, Any]] = {}
 
     async def start_monitoring(self, page: Page) -> None:
         """Start monitoring network traffic on a page."""
@@ -290,7 +289,7 @@ class NetworkMonitor:
                 url=getattr(request, 'url', 'unknown'),
             )
 
-    def _classify_request(self, request: Request, response: Optional[Response]) -> RequestType:
+    def _classify_request(self, request: Request, response: Response | None) -> RequestType:
         """Classify the type of network request."""
         url = request.url.lower()
         method = request.method.upper()
@@ -343,7 +342,7 @@ class NetworkMonitor:
 
         return RequestType.UNKNOWN
 
-    def _is_third_party_request(self, url: str) -> tuple[bool, Optional[str]]:
+    def _is_third_party_request(self, url: str) -> tuple[bool, str | None]:
         """Check if request is to a third-party domain."""
         if not self.base_domain:
             return False, None
@@ -371,7 +370,7 @@ class NetworkMonitor:
 
         return True
 
-    def _sanitize_payload(self, payload: str) -> Optional[str]:
+    def _sanitize_payload(self, payload: str) -> str | None:
         """Sanitize payload data, removing sensitive information."""
         if not payload:
             return None
@@ -401,7 +400,7 @@ class NetworkMonitor:
         ]
         return header_name.lower() in sensitive_headers
 
-    def _parse_content_length(self, content_length_header: Optional[str]) -> Optional[int]:
+    def _parse_content_length(self, content_length_header: str | None) -> int | None:
         """Parse content-length header."""
         if not content_length_header:
             return None
@@ -460,7 +459,7 @@ class NetworkMonitor:
             third_party_domains=third_party_domains,
         )
 
-    def get_requests(self) -> List[NetworkRequestData]:
+    def get_requests(self) -> list[NetworkRequestData]:
         """Get all captured requests."""
         return self.requests.copy()
 

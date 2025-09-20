@@ -5,11 +5,11 @@ import re
 import time
 from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
-from urllib.parse import urljoin, urlparse
+from typing import Any
+from urllib.parse import urljoin
 
 import structlog
-from playwright.async_api import ElementHandle, Locator, Page, TimeoutError as PlaywrightTimeoutError
+from playwright.async_api import ElementHandle, Locator, Page
 from pydantic import BaseModel, Field
 
 _logger = structlog.get_logger("legacy_web_mcp.browser.interaction")
@@ -43,11 +43,11 @@ class ElementInfo(BaseModel):
     selector: str
     element_type: str
     tag_name: str
-    text_content: Optional[str] = None
-    attributes: Dict[str, str] = Field(default_factory=dict)
+    text_content: str | None = None
+    attributes: dict[str, str] = Field(default_factory=dict)
     is_visible: bool = True
     is_interactive: bool = True
-    bounding_box: Optional[Dict[str, float]] = None
+    bounding_box: dict[str, float] | None = None
 
 
 class InteractionLog(BaseModel):
@@ -58,10 +58,10 @@ class InteractionLog(BaseModel):
     element_info: ElementInfo
     status: InteractionStatus
     timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
-    error_message: Optional[str] = None
-    data_used: Optional[Dict[str, Any]] = None
-    result: Optional[Dict[str, Any]] = None
-    page_changes: Optional[Dict[str, Any]] = None
+    error_message: str | None = None
+    data_used: dict[str, Any] | None = None
+    result: dict[str, Any] | None = None
+    page_changes: dict[str, Any] | None = None
 
 
 class InteractionConfig(BaseModel):
@@ -75,7 +75,7 @@ class InteractionConfig(BaseModel):
     scroll_delay: float = 1.0
     interaction_timeout: float = 5.0
     sample_data_enabled: bool = True
-    destructive_action_keywords: List[str] = Field(default_factory=lambda: [
+    destructive_action_keywords: list[str] = Field(default_factory=lambda: [
         "delete", "remove", "clear", "reset", "cancel", "destroy",
         "purge", "wipe", "erase", "terminate", "disable", "deactivate"
     ])
@@ -88,8 +88,8 @@ class PageInteractionAutomator:
 
     def __init__(self, config: InteractionConfig):
         self.config = config
-        self.interaction_logs: List[InteractionLog] = []
-        self.discovered_urls: Set[str] = set()
+        self.interaction_logs: list[InteractionLog] = []
+        self.discovered_urls: set[str] = set()
         self._interaction_counter = 0
 
         # Sample data for form interactions
@@ -108,7 +108,7 @@ class PageInteractionAutomator:
         self,
         page: Page,
         base_url: str,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Discover page elements and perform safe interactions.
 
         Args:
@@ -188,7 +188,7 @@ class PageInteractionAutomator:
             )
             raise
 
-    async def _discover_interactive_elements(self, page: Page) -> List[ElementInfo]:
+    async def _discover_interactive_elements(self, page: Page) -> list[ElementInfo]:
         """Discover all interactive elements on the page."""
         elements = []
 
@@ -229,7 +229,7 @@ class PageInteractionAutomator:
 
         return elements
 
-    async def _extract_element_info(self, element: ElementHandle, selector: str) -> Optional[ElementInfo]:
+    async def _extract_element_info(self, element: ElementHandle, selector: str) -> ElementInfo | None:
         """Extract information from a page element."""
         try:
             tag_name = await element.evaluate("el => el.tagName.toLowerCase()")
@@ -283,7 +283,7 @@ class PageInteractionAutomator:
             )
             return None
 
-    def _classify_element_type(self, tag_name: str, attributes: Dict[str, str], text_content: Optional[str]) -> str:
+    def _classify_element_type(self, tag_name: str, attributes: dict[str, str], text_content: str | None) -> str:
         """Classify the type of element based on its properties."""
         if tag_name == "button":
             return "button"
@@ -456,7 +456,7 @@ class PageInteractionAutomator:
                 error_message=str(e),
             )
 
-    async def _explore_navigation_elements(self, page: Page, base_url: str, elements: List[ElementInfo]) -> None:
+    async def _explore_navigation_elements(self, page: Page, base_url: str, elements: list[ElementInfo]) -> None:
         """Explore navigation menus and links to discover additional pages."""
         nav_elements = [
             elem for elem in elements
@@ -511,7 +511,7 @@ class PageInteractionAutomator:
                     error_message=str(e),
                 )
 
-    async def _interact_with_forms(self, page: Page, base_url: str, elements: List[ElementInfo]) -> None:
+    async def _interact_with_forms(self, page: Page, base_url: str, elements: list[ElementInfo]) -> None:
         """Safely interact with forms using sample data."""
         form_elements = [
             elem for elem in elements
@@ -617,7 +617,7 @@ class PageInteractionAutomator:
                     error=str(e),
                 )
 
-    async def _perform_hover_and_focus_interactions(self, page: Page, base_url: str, elements: List[ElementInfo]) -> None:
+    async def _perform_hover_and_focus_interactions(self, page: Page, base_url: str, elements: list[ElementInfo]) -> None:
         """Perform hover and focus interactions to reveal hidden elements."""
         hover_elements = [
             elem for elem in elements
@@ -710,7 +710,8 @@ class PageInteractionAutomator:
         elif element.attributes.get("id"):
             return page.locator(f"#{element.attributes['id']}")
         elif element.text_content:
-            return page.locator(f"{element.tag_name}:has-text('{element.text_content[:50].replace('\n', ' ')}')")
+            text_content = element.text_content[:50].replace('\n', ' ')
+            return page.locator(f"{element.tag_name}:has-text('{text_content}')")
         else:
             return page.locator(element.selector)
 
@@ -725,9 +726,9 @@ class PageInteractionAutomator:
         interaction_type: InteractionType,
         element_info: ElementInfo,
         status: InteractionStatus,
-        error_message: Optional[str] = None,
-        data_used: Optional[Dict[str, Any]] = None,
-        result: Optional[Dict[str, Any]] = None,
+        error_message: str | None = None,
+        data_used: dict[str, Any] | None = None,
+        result: dict[str, Any] | None = None,
     ) -> None:
         """Log an interaction attempt."""
         log_entry = InteractionLog(
@@ -751,7 +752,7 @@ class PageInteractionAutomator:
             error=error_message,
         )
 
-    async def _capture_page_state(self, page: Page) -> Dict[str, Any]:
+    async def _capture_page_state(self, page: Page) -> dict[str, Any]:
         """Capture current page state for comparison."""
         try:
             return {
@@ -767,7 +768,7 @@ class PageInteractionAutomator:
             )
             return {}
 
-    def get_interaction_summary(self) -> Dict[str, Any]:
+    def get_interaction_summary(self) -> dict[str, Any]:
         """Get summary of all interactions performed."""
         if not self.interaction_logs:
             return {

@@ -1,13 +1,11 @@
 """Comprehensive page analysis data collection for LLM processing."""
 from __future__ import annotations
 
-import json
-import re
 import time
 from datetime import UTC, datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from typing import Any
 from urllib.parse import urlparse
 
 import structlog
@@ -73,24 +71,24 @@ class DOMStructureAnalysis(BaseModel):
     style_elements: int = 0
 
     # Element details
-    forms: List[Dict[str, Any]] = Field(default_factory=list)
-    buttons: List[Dict[str, Any]] = Field(default_factory=list)
-    inputs: List[Dict[str, Any]] = Field(default_factory=list)
-    links: List[Dict[str, Any]] = Field(default_factory=list)
+    forms: list[dict[str, Any]] = Field(default_factory=list)
+    buttons: list[dict[str, Any]] = Field(default_factory=list)
+    inputs: list[dict[str, Any]] = Field(default_factory=list)
+    links: list[dict[str, Any]] = Field(default_factory=list)
 
     # Structure metrics
     max_nesting_depth: int = 0
-    heading_structure: List[Dict[str, Any]] = Field(default_factory=list)
-    landmark_elements: List[str] = Field(default_factory=list)
+    heading_structure: list[dict[str, Any]] = Field(default_factory=list)
+    landmark_elements: list[str] = Field(default_factory=list)
 
 
 class FunctionalityAnalysis(BaseModel):
     """Analysis of page functionality and workflows."""
 
     page_type: PageType = PageType.UNKNOWN
-    primary_functions: List[str] = Field(default_factory=list)
-    user_workflows: List[str] = Field(default_factory=list)
-    interaction_patterns: List[str] = Field(default_factory=list)
+    primary_functions: list[str] = Field(default_factory=list)
+    user_workflows: list[str] = Field(default_factory=list)
+    interaction_patterns: list[str] = Field(default_factory=list)
     navigation_complexity: str = "simple"  # simple, moderate, complex
     content_density: str = "low"  # low, medium, high
     form_complexity: str = "none"  # none, simple, moderate, complex
@@ -99,52 +97,52 @@ class FunctionalityAnalysis(BaseModel):
 class AccessibilityAnalysis(BaseModel):
     """Accessibility tree and semantic structure analysis."""
 
-    accessibility_tree: Dict[str, Any] = Field(default_factory=dict)
-    semantic_roles: List[str] = Field(default_factory=list)
-    aria_labels: List[Dict[str, str]] = Field(default_factory=list)
-    alt_texts: List[str] = Field(default_factory=list)
-    heading_hierarchy: List[Dict[str, Any]] = Field(default_factory=list)
-    focus_order: List[str] = Field(default_factory=list)
-    accessibility_violations: List[str] = Field(default_factory=list)
+    accessibility_tree: dict[str, Any] = Field(default_factory=dict)
+    semantic_roles: list[str] = Field(default_factory=list)
+    aria_labels: list[dict[str, str]] = Field(default_factory=list)
+    alt_texts: list[str] = Field(default_factory=list)
+    heading_hierarchy: list[dict[str, Any]] = Field(default_factory=list)
+    focus_order: list[str] = Field(default_factory=list)
+    accessibility_violations: list[str] = Field(default_factory=list)
 
 
 class TechnologyAnalysis(BaseModel):
     """JavaScript frameworks and technology detection."""
 
-    js_frameworks: List[JSFramework] = Field(default_factory=list)
-    js_libraries: List[str] = Field(default_factory=list)
-    css_frameworks: List[str] = Field(default_factory=list)
-    build_tools: List[str] = Field(default_factory=list)
-    meta_frameworks: List[str] = Field(default_factory=list)
-    cms_detection: Optional[str] = None
-    analytics_tools: List[str] = Field(default_factory=list)
+    js_frameworks: list[JSFramework] = Field(default_factory=list)
+    js_libraries: list[str] = Field(default_factory=list)
+    css_frameworks: list[str] = Field(default_factory=list)
+    build_tools: list[str] = Field(default_factory=list)
+    meta_frameworks: list[str] = Field(default_factory=list)
+    cms_detection: str | None = None
+    analytics_tools: list[str] = Field(default_factory=list)
 
 
 class CSSAnalysis(BaseModel):
     """CSS styling patterns and responsive design analysis."""
 
-    external_stylesheets: List[str] = Field(default_factory=list)
+    external_stylesheets: list[str] = Field(default_factory=list)
     inline_styles_count: int = 0
     css_variables_count: int = 0
-    media_queries: List[str] = Field(default_factory=list)
-    responsive_breakpoints: List[int] = Field(default_factory=list)
-    css_frameworks_detected: List[str] = Field(default_factory=list)
+    media_queries: list[str] = Field(default_factory=list)
+    responsive_breakpoints: list[int] = Field(default_factory=list)
+    css_frameworks_detected: list[str] = Field(default_factory=list)
     critical_css_size: int = 0
-    animation_properties: List[str] = Field(default_factory=list)
+    animation_properties: list[str] = Field(default_factory=list)
 
 
 class PerformanceAnalysis(BaseModel):
     """Performance metrics and optimization opportunities."""
 
-    navigation_timing: Dict[str, float] = Field(default_factory=dict)
-    resource_timing: Dict[str, Any] = Field(default_factory=dict)
-    core_web_vitals: Dict[str, float] = Field(default_factory=dict)
+    navigation_timing: dict[str, float] = Field(default_factory=dict)
+    resource_timing: dict[str, Any] = Field(default_factory=dict)
+    core_web_vitals: dict[str, float] = Field(default_factory=dict)
     total_resource_size: int = 0
     render_blocking_resources: int = 0
     javascript_bundle_size: int = 0
     css_bundle_size: int = 0
     image_optimization_score: float = 0.0
-    cache_utilization: Dict[str, Any] = Field(default_factory=dict)
+    cache_utilization: dict[str, Any] = Field(default_factory=dict)
 
 
 class PageAnalysisData(BaseModel):
@@ -153,13 +151,13 @@ class PageAnalysisData(BaseModel):
     # Basic page information
     url: str
     title: str
-    description: Optional[str] = None
+    description: str | None = None
     timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     # Core content
-    page_content: Dict[str, Any] = Field(default_factory=dict)
-    network_traffic: Dict[str, Any] = Field(default_factory=dict)
-    user_interactions: Dict[str, Any] = Field(default_factory=dict)
+    page_content: dict[str, Any] = Field(default_factory=dict)
+    network_traffic: dict[str, Any] = Field(default_factory=dict)
+    user_interactions: dict[str, Any] = Field(default_factory=dict)
 
     # Analysis results
     dom_analysis: DOMStructureAnalysis = Field(default_factory=DOMStructureAnalysis)
@@ -172,9 +170,9 @@ class PageAnalysisData(BaseModel):
     # Processing metadata
     analysis_duration: float = 0.0
     analysis_version: str = "1.0.0"
-    processing_errors: List[str] = Field(default_factory=list)
+    processing_errors: list[str] = Field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         return {
             "url": self.url,
@@ -248,7 +246,7 @@ class PageAnalyzer:
         self,
         page: Page,
         url: str,
-        project_root: Optional[Path] = None,
+        project_root: Path | None = None,
     ) -> PageAnalysisData:
         """Perform comprehensive analysis of a single page.
 
@@ -351,12 +349,12 @@ class PageAnalyzer:
         self,
         page: Page,
         url: str,
-        project_root: Optional[Path],
+        project_root: Path | None,
     ) -> PageContentData:
         """Extract basic page content using PageNavigator."""
         return await self.page_navigator.navigate_and_extract(page, url, project_root)
 
-    async def _analyze_network_traffic(self, page: Page, url: str) -> Dict[str, Any]:
+    async def _analyze_network_traffic(self, page: Page, url: str) -> dict[str, Any]:
         """Analyze network traffic during page load."""
         try:
             await self.network_monitor.start_monitoring(page)
@@ -380,7 +378,7 @@ class PageAnalyzer:
             _logger.warning("network_analysis_failed", error=str(e))
             return {"error": str(e)}
 
-    async def _analyze_user_interactions(self, page: Page, url: str) -> Dict[str, Any]:
+    async def _analyze_user_interactions(self, page: Page, url: str) -> dict[str, Any]:
         """Analyze page through user interaction simulation."""
         try:
             results = await self.interaction_automator.discover_and_interact(page, url)
@@ -764,7 +762,7 @@ class PageAnalyzer:
         else:
             return PageType.UNKNOWN
 
-    def _identify_primary_functions(self, dom_analysis: DOMStructureAnalysis) -> List[str]:
+    def _identify_primary_functions(self, dom_analysis: DOMStructureAnalysis) -> list[str]:
         """Identify primary page functions based on elements."""
         functions = []
 

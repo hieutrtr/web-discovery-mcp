@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Dict, List, Optional, Tuple
 
 import structlog
 from pydantic import BaseModel, Field
@@ -22,9 +21,9 @@ class ModelConfiguration(BaseModel):
     step2_model: str = Field(default="analysis")
     fallback_model: str = Field(default="fast")
 
-    step1_provider: Optional[LLMProvider] = None
-    step2_provider: Optional[LLMProvider] = None
-    fallback_provider: Optional[LLMProvider] = None
+    step1_provider: LLMProvider | None = None
+    step2_provider: LLMProvider | None = None
+    fallback_provider: LLMProvider | None = None
 
 
 class BudgetConfiguration(BaseModel):
@@ -45,8 +44,8 @@ class UsageRecord(BaseModel):
     prompt_tokens: int
     completion_tokens: int
     cost: float
-    page_url: Optional[str] = None
-    project_id: Optional[str] = None
+    page_url: str | None = None
+    project_id: str | None = None
 
 
 class BudgetAlert(BaseModel):
@@ -66,8 +65,8 @@ class LLMConfigurationManager:
     def __init__(self, settings: MCPSettings):
         self.settings = settings
         self.model_registry = get_model_registry()
-        self.usage_records: List[UsageRecord] = []
-        self.budget_alerts: List[BudgetAlert] = []
+        self.usage_records: list[UsageRecord] = []
+        self.budget_alerts: list[BudgetAlert] = []
 
         # Initialize configuration
         self.model_config = self._initialize_model_config()
@@ -117,7 +116,7 @@ class LLMConfigurationManager:
             warning_threshold=self.settings.BUDGET_WARNING_THRESHOLD,
         )
 
-    def get_model_for_request_type(self, request_type: LLMRequestType) -> Tuple[LLMProvider, str]:
+    def get_model_for_request_type(self, request_type: LLMRequestType) -> tuple[LLMProvider, str]:
         """Get the configured model for a specific request type."""
         if request_type == LLMRequestType.CONTENT_SUMMARY:
             return self.model_config.step1_provider, self.model_config.step1_model
@@ -127,7 +126,7 @@ class LLMConfigurationManager:
             # Use fallback for diagnostics and other types
             return self.model_config.fallback_provider, self.model_config.fallback_model
 
-    def get_fallback_chain(self, request_type: LLMRequestType) -> List[Tuple[LLMProvider, str]]:
+    def get_fallback_chain(self, request_type: LLMRequestType) -> list[tuple[LLMProvider, str]]:
         """Get the fallback chain for a request type."""
         primary_provider, primary_model = self.get_model_for_request_type(request_type)
         fallback_provider, fallback_model = (
@@ -151,8 +150,8 @@ class LLMConfigurationManager:
     def _get_additional_fallbacks(
         self,
         request_type: LLMRequestType,
-        existing_chain: List[Tuple[LLMProvider, str]],
-    ) -> List[Tuple[LLMProvider, str]]:
+        existing_chain: list[tuple[LLMProvider, str]],
+    ) -> list[tuple[LLMProvider, str]]:
         """Get additional fallback models for redundancy."""
         used_combinations = set(existing_chain)
         additional = []
@@ -171,7 +170,7 @@ class LLMConfigurationManager:
 
         return additional
 
-    def validate_configuration(self) -> Dict[str, bool]:
+    def validate_configuration(self) -> dict[str, bool]:
         """Validate that all configured models are available."""
         validation_results = {}
 
@@ -203,8 +202,8 @@ class LLMConfigurationManager:
         prompt_tokens: int,
         completion_tokens: int,
         cost: float,
-        page_url: Optional[str] = None,
-        project_id: Optional[str] = None,
+        page_url: str | None = None,
+        project_id: str | None = None,
     ) -> None:
         """Record model usage for budget tracking."""
         usage_record = UsageRecord(
@@ -244,7 +243,7 @@ class LLMConfigurationManager:
 
         return sum(record.cost for record in current_month_records)
 
-    def get_usage_by_model(self, days: int = 30) -> Dict[str, Dict[str, float]]:
+    def get_usage_by_model(self, days: int = 30) -> dict[str, dict[str, float]]:
         """Get usage breakdown by model for the last N days."""
         cutoff = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
         cutoff = cutoff.replace(day=cutoff.day - days) if cutoff.day > days else cutoff.replace(month=cutoff.month - 1)
@@ -330,7 +329,7 @@ class LLMConfigurationManager:
                     percentage=usage_percentage * 100,
                 )
 
-    def get_configuration_summary(self) -> Dict[str, any]:
+    def get_configuration_summary(self) -> dict[str, any]:
         """Get a summary of the current configuration."""
         return {
             "model_configuration": {
@@ -350,7 +349,7 @@ class LLMConfigurationManager:
             },
         }
 
-    def get_recent_alerts(self, days: int = 30) -> List[BudgetAlert]:
+    def get_recent_alerts(self, days: int = 30) -> list[BudgetAlert]:
         """Get recent budget alerts."""
         cutoff = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
         cutoff = cutoff.replace(day=cutoff.day - days) if cutoff.day > days else cutoff.replace(month=cutoff.month - 1)

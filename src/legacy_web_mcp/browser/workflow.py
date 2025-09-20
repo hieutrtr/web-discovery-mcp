@@ -3,16 +3,14 @@ from __future__ import annotations
 
 import asyncio
 import json
-import time
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set
+from typing import Any
 from urllib.parse import urlparse
 
 import structlog
-from playwright.async_api import Page
 
 from legacy_web_mcp.browser.analysis import PageAnalysisData, PageAnalyzer
 from legacy_web_mcp.browser.service import BrowserAutomationService
@@ -51,13 +49,13 @@ class PageTask:
     status: PageProcessingStatus = PageProcessingStatus.PENDING
     attempts: int = 0
     max_attempts: int = 3
-    error_message: Optional[str] = None
-    processing_start_time: Optional[datetime] = None
-    processing_end_time: Optional[datetime] = None
-    analysis_result: Optional[PageAnalysisData] = None
+    error_message: str | None = None
+    processing_start_time: datetime | None = None
+    processing_end_time: datetime | None = None
+    analysis_result: PageAnalysisData | None = None
 
     @property
-    def processing_duration(self) -> Optional[float]:
+    def processing_duration(self) -> float | None:
         """Get processing duration in seconds."""
         if self.processing_start_time and self.processing_end_time:
             return (self.processing_end_time - self.processing_start_time).total_seconds()
@@ -78,12 +76,12 @@ class WorkflowProgress:
     failed_pages: int = 0
     skipped_pages: int = 0
     current_page_index: int = 0
-    current_page_url: Optional[str] = None
+    current_page_url: str | None = None
 
     # Timing information
-    workflow_start_time: Optional[datetime] = None
-    workflow_end_time: Optional[datetime] = None
-    estimated_completion_time: Optional[datetime] = None
+    workflow_start_time: datetime | None = None
+    workflow_end_time: datetime | None = None
+    estimated_completion_time: datetime | None = None
 
     # Performance metrics
     average_page_processing_time: float = 0.0
@@ -102,14 +100,14 @@ class WorkflowProgress:
         return ((self.completed_pages + self.failed_pages + self.skipped_pages) / self.total_pages) * 100
 
     @property
-    def workflow_duration(self) -> Optional[float]:
+    def workflow_duration(self) -> float | None:
         """Get total workflow duration in seconds."""
         if self.workflow_start_time:
             end_time = self.workflow_end_time or datetime.now(UTC)
             return (end_time - self.workflow_start_time).total_seconds()
         return None
 
-    def update_timing_estimates(self, completed_processing_times: List[float]) -> None:
+    def update_timing_estimates(self, completed_processing_times: list[float]) -> None:
         """Update timing estimates based on completed page processing times."""
         if completed_processing_times:
             self.average_page_processing_time = sum(completed_processing_times) / len(completed_processing_times)
@@ -134,11 +132,11 @@ class WorkflowCheckpoint:
     project_id: str
     workflow_id: str
     created_at: datetime
-    page_tasks: List[Dict[str, Any]]
-    progress: Dict[str, Any]
-    configuration: Dict[str, Any]
+    page_tasks: list[dict[str, Any]]
+    progress: dict[str, Any]
+    configuration: dict[str, Any]
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert checkpoint to dictionary for serialization."""
         return {
             "project_id": self.project_id,
@@ -150,7 +148,7 @@ class WorkflowCheckpoint:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> WorkflowCheckpoint:
+    def from_dict(cls, data: dict[str, Any]) -> WorkflowCheckpoint:
         """Create checkpoint from dictionary."""
         return cls(
             project_id=data["project_id"],
@@ -185,14 +183,14 @@ class SequentialNavigationWorkflow:
 
         # Workflow state
         self.workflow_id = self._generate_workflow_id()
-        self.page_tasks: List[PageTask] = []
+        self.page_tasks: list[PageTask] = []
         self.progress = WorkflowProgress(total_pages=0)
         self.status = QueueStatus.PENDING
 
         # Control flags
         self._should_pause = False
         self._should_stop = False
-        self._current_sessions: Set[str] = set()
+        self._current_sessions: set[str] = set()
 
         # Checkpoint management
         self.checkpoint_dir = project_root / "workflow" / "checkpoints"
@@ -210,7 +208,7 @@ class SequentialNavigationWorkflow:
         timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
         return f"workflow_{timestamp}"
 
-    def add_page_urls(self, urls: List[str], max_retries: Optional[int] = None) -> None:
+    def add_page_urls(self, urls: list[str], max_retries: int | None = None) -> None:
         """Add URLs to the processing queue."""
         if self.status not in [QueueStatus.PENDING, QueueStatus.PAUSED]:
             raise ValueError(f"Cannot add URLs when workflow status is {self.status}")
@@ -248,7 +246,7 @@ class SequentialNavigationWorkflow:
 
     async def start_workflow(
         self,
-        analyzer_config: Optional[Dict[str, Any]] = None,
+        analyzer_config: dict[str, Any] | None = None,
     ) -> None:
         """Start the sequential navigation workflow."""
         if self.status != QueueStatus.PENDING:
@@ -514,7 +512,7 @@ class SequentialNavigationWorkflow:
             checkpoint_file=str(checkpoint_file),
         )
 
-    def _serialize_page_task(self, task: PageTask) -> Dict[str, Any]:
+    def _serialize_page_task(self, task: PageTask) -> dict[str, Any]:
         """Serialize page task for checkpoint storage."""
         data = asdict(task)
 
@@ -537,7 +535,7 @@ class SequentialNavigationWorkflow:
         project_root: Path,
     ) -> SequentialNavigationWorkflow:
         """Load workflow from checkpoint file."""
-        with open(checkpoint_file, "r", encoding="utf-8") as f:
+        with open(checkpoint_file, encoding="utf-8") as f:
             checkpoint_data = json.load(f)
 
         checkpoint = WorkflowCheckpoint.from_dict(checkpoint_data)
@@ -656,7 +654,7 @@ class SequentialNavigationWorkflow:
                 page_id=current_task.page_id,
             )
 
-    def get_progress_summary(self) -> Dict[str, Any]:
+    def get_progress_summary(self) -> dict[str, Any]:
         """Get comprehensive progress summary."""
         return {
             "workflow_id": self.workflow_id,

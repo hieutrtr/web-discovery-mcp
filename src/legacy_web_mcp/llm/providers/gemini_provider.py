@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import time
-from typing import Any, Dict, List
+from typing import Any
 
 import aiohttp
 import structlog
@@ -169,7 +169,7 @@ class GeminiProvider(LLMProviderInterface):
         except aiohttp.ClientError as e:
             raise TimeoutError(f"Gemini API connection error: {e}", LLMProvider.GEMINI)
 
-    def _parse_response(self, response_data: Dict[str, Any], request: LLMRequest, model: str) -> LLMResponse:
+    def _parse_response(self, response_data: dict[str, Any], request: LLMRequest, model: str) -> LLMResponse:
         """Parse Gemini API response into unified format."""
         try:
             content = ""
@@ -281,7 +281,7 @@ class GeminiProvider(LLMProviderInterface):
             model,
         )
 
-    def get_supported_models(self) -> List[str]:
+    def get_supported_models(self) -> list[str]:
         """Get list of supported Gemini models."""
         return [
             "gemini-pro",

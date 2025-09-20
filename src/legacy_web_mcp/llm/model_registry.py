@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple
 
 import structlog
 
@@ -21,7 +20,7 @@ class ModelInfo:
     context_length: int
     cost_per_1k_prompt: float
     cost_per_1k_completion: float
-    best_for: List[LLMRequestType]
+    best_for: list[LLMRequestType]
     deprecated: bool = False
 
 
@@ -29,9 +28,9 @@ class ModelRegistry:
     """Registry for mapping logical model names to provider-specific models."""
 
     def __init__(self):
-        self._models: Dict[str, ModelInfo] = {}
-        self._logical_mappings: Dict[str, str] = {}
-        self._provider_models: Dict[LLMProvider, List[str]] = {}
+        self._models: dict[str, ModelInfo] = {}
+        self._logical_mappings: dict[str, str] = {}
+        self._provider_models: dict[LLMProvider, list[str]] = {}
         self._initialize_models()
         self._initialize_logical_mappings()
 
@@ -163,7 +162,7 @@ class ModelRegistry:
             "gemini-best": "gemini-1.5-pro",
         })
 
-    def resolve_model(self, model_name: str) -> Tuple[LLMProvider, str]:
+    def resolve_model(self, model_name: str) -> tuple[LLMProvider, str]:
         """Resolve a logical or actual model name to provider and model ID."""
         if not model_name:
             raise ValueError("Model name cannot be empty")
@@ -192,18 +191,18 @@ class ModelRegistry:
         model_info = self._models[resolved_model_id]
         return model_info.provider, resolved_model_id
 
-    def get_model_info(self, model_id: str) -> Optional[ModelInfo]:
+    def get_model_info(self, model_id: str) -> ModelInfo | None:
         """Get detailed information about a model."""
         return self._models.get(model_id)
 
-    def get_models_for_provider(self, provider: LLMProvider) -> List[str]:
+    def get_models_for_provider(self, provider: LLMProvider) -> list[str]:
         """Get all available models for a specific provider."""
         return self._provider_models.get(provider, [])
 
     def get_recommended_model(
         self,
         request_type: LLMRequestType,
-        provider: Optional[LLMProvider] = None,
+        provider: LLMProvider | None = None,
         budget_conscious: bool = False,
     ) -> str:
         """Get a recommended model for a specific request type and constraints."""
@@ -242,15 +241,15 @@ class ModelRegistry:
         except ValueError:
             return False
 
-    def get_all_logical_names(self) -> List[str]:
+    def get_all_logical_names(self) -> list[str]:
         """Get all available logical model names."""
         return list(self._logical_mappings.keys())
 
-    def get_all_model_ids(self) -> List[str]:
+    def get_all_model_ids(self) -> list[str]:
         """Get all available model IDs."""
         return list(self._models.keys())
 
-    def get_model_cost_info(self, model_id: str) -> Tuple[float, float]:
+    def get_model_cost_info(self, model_id: str) -> tuple[float, float]:
         """Get cost per 1K tokens for a model (prompt, completion)."""
         model_info = self.get_model_info(model_id)
         if not model_info:

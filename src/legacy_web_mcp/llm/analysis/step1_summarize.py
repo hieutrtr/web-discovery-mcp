@@ -3,9 +3,6 @@
 
 from __future__ import annotations
 
-import json
-from typing import Any
-
 import structlog
 
 from legacy_web_mcp.browser.analysis import PageAnalysisData
@@ -46,15 +43,20 @@ class ContentSummarizer:
         _logger.info("Starting content summarization for page", url=page_analysis_data.url)
 
         # For Step 1, we primarily need the visible text and a summary of the DOM.
+        dom_analysis = page_analysis_data.dom_analysis
         dom_summary = {
-            "total_elements": page_analysis_data.dom_structure.total_elements,
-            "interactive_elements": page_analysis_data.dom_structure.interactive_elements_count,
-            "form_count": page_analysis_data.dom_structure.form_count,
-            "link_count": page_analysis_data.dom_structure.link_count,
+            "total_elements": dom_analysis.total_elements,
+            "interactive_elements": dom_analysis.interactive_elements,
+            "form_count": dom_analysis.form_elements,
+            "link_count": dom_analysis.link_elements,
         }
 
+        # Extract visible text from page_content
+        page_content = page_analysis_data.page_content
+        visible_text = page_content.get("visible_text", page_content.get("text_content", ""))
+
         prompt = create_content_summary_prompt(
-            page_content=page_analysis_data.visible_text,
+            page_content=visible_text,
             dom_structure=dom_summary,
             url=page_analysis_data.url,
         )
@@ -105,15 +107,13 @@ class ContentSummarizer:
         num_fields = 5
         
         # Penalize for empty or placeholder-like fields
-        if not summary.purpose or len(summary.purpose.split()) < 3:
-            score -= 0.25
-        if not summary.target_users or len(summary.target_users.split()) < 2:
+        if not summary.purpose or len(summary.purpose.split()) < 2:
             score -= 0.2
-        if not summary.business_logic_overview or len(summary.business_logic_overview.split()) < 5:
-            score -= 0.25
-        if not summary.information_architecture:
-            score -= 0.15
-        if not summary.user_journey_context:
-            score -= 0.15
+        if not summary.user_context or len(summary.user_context.split()) < 2:
+            score -= 0.2
+        if not summary.business_logic or len(summary.business_logic.split()) < 3:
+            score -= 0.2
+        if not summary.navigation_role:
+            score -= 0.2
 
         return max(0.1, score) # Ensure a minimum score

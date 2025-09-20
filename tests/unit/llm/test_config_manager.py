@@ -1,7 +1,4 @@
 """Tests for LLM configuration manager."""
-import pytest
-from datetime import UTC, datetime
-from unittest.mock import Mock
 
 from legacy_web_mcp.config.settings import MCPSettings
 from legacy_web_mcp.llm.config_manager import LLMConfigurationManager
