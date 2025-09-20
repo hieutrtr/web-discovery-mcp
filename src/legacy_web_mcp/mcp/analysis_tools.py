@@ -67,7 +67,7 @@ def register(mcp: FastMCP) -> None:
             content_summary = await summarizer.summarize_page(page_data)
 
             _logger.info("page_content_summarization_completed", url=url)
-            return {"status": "success", "summary": content_summary.dict()}
+            return {"status": "success", "summary": content_summary.model_dump()}
 
         except Exception as e:
             await context.error(f"Content summarization failed: {e}")
@@ -120,7 +120,7 @@ def register(mcp: FastMCP) -> None:
             content_summary = await summarizer.summarize_page(page_data)
 
             _logger.info("page_content_summarization_completed", url=url)
-            return {"status": "success", "summary": content_summary.dict()}
+            return {"status": "success", "summary": content_summary.model_dump()}
 
         except Exception as e:
             await context.error(f"Content summarization failed: {e}")

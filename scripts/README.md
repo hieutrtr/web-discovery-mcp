@@ -277,7 +277,36 @@ python scripts/test_sequential_workflow.py queue_control
 python scripts/test_sequential_workflow.py checkpointing
 ```
 
-### 11. `check_env.py` - Environment Variable Validation
+### 11. `test_step1_summarize.py` - Step 1 Content Summarization Testing
+
+Tests the Step 1 Content Summarization Analysis functionality from Story 3.3, including LLM-powered content analysis, purpose identification, user context extraction, business logic understanding, and confidence scoring for individual pages.
+
+**Usage:**
+```bash
+# Run all Step 1 content summarization tests
+python scripts/test_step1_summarize.py all
+
+# Test specific components
+python scripts/test_step1_summarize.py basic           # Test basic content summarization workflow
+python scripts/test_step1_summarize.py confidence     # Test confidence scoring algorithm
+python scripts/test_step1_summarize.py mcp_tools      # Test MCP tools for content summarization
+python scripts/test_step1_summarize.py model_fallback # Test LLM model fallback mechanisms
+python scripts/test_step1_summarize.py batch          # Test batch processing of multiple pages
+```
+
+**Examples:**
+```bash
+# Test basic content summarization
+python scripts/test_step1_summarize.py basic
+
+# Test MCP tool integration
+python scripts/test_step1_summarize.py mcp_tools
+
+# Test with specific URL
+python scripts/test_step1_summarize.py basic --url https://example.com
+```
+
+### 12. `check_env.py` - Environment Variable Validation
 
 CLI utility to ensure required environment variables are present for proper MCP server operation.
 
@@ -367,6 +396,11 @@ The server provides these tools that you can test:
 | `control_workflow` | Control active workflow (pause, resume, stop, skip) | `workflow_id`, `action` |
 | `resume_workflow_from_checkpoint` | Resume workflow from checkpoint file | `checkpoint_path`, `project_id` (optional) |
 | `list_active_workflows` | List all currently active workflows | None |
+
+### Step 1 Content Summarization Tools (Story 3.3)
+| Tool | Description | Arguments |
+|------|-------------|-----------|
+| `summarize_page_content` | Perform Step 1 Content Summarization analysis on a single page | `url`, `project_id` (optional), `browser_engine` (optional) |
 
 ## Environment Setup
 
