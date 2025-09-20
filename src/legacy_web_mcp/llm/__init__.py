@@ -1,6 +1,8 @@
 """LLM integration engine with multi-provider support."""
 
+from .config_manager import LLMConfigurationManager, BudgetAlert, UsageRecord
 from .engine import LLMEngine
+from .model_registry import ModelRegistry, get_model_registry
 from .models import (
     LLMError,
     LLMMessage,
@@ -19,6 +21,13 @@ from .providers import AnthropicProvider, GeminiProvider, OpenAIProvider
 __all__ = [
     # Main Engine
     "LLMEngine",
+    # Configuration Management
+    "LLMConfigurationManager",
+    "BudgetAlert",
+    "UsageRecord",
+    # Model Registry
+    "ModelRegistry",
+    "get_model_registry",
     # Models
     "LLMProvider",
     "LLMRole",

@@ -27,9 +27,15 @@ class MCPSettings(BaseSettings):
     ANTHROPIC_API_KEY: SecretStr | None = Field(default=None, repr=False)
     GEMINI_API_KEY: SecretStr | None = Field(default=None, repr=False)
 
+    # Model selection configuration
     STEP1_MODEL: str | None = None
     STEP2_MODEL: str | None = None
     FALLBACK_MODEL: str | None = None
+
+    # Budget monitoring configuration
+    MONTHLY_BUDGET_LIMIT: float = Field(default=100.0)  # USD per month
+    BUDGET_ALERT_THRESHOLD: float = Field(default=0.8)  # Alert at 80% of budget
+    BUDGET_WARNING_THRESHOLD: float = Field(default=0.5)  # Warn at 50% of budget
 
     # Browser defaults
     BROWSER_ENGINE: str = Field(default=_DEFAULT_BROWSER)

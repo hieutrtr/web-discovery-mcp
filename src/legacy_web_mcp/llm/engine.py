@@ -3,12 +3,13 @@ from __future__ import annotations
 
 import asyncio
 from datetime import UTC, datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import structlog
 
 from legacy_web_mcp.config.settings import MCPSettings
 
+from .config_manager import LLMConfigurationManager
 from .models import (
     AuthenticationError,
     CostTracking,
@@ -36,6 +37,7 @@ class LLMEngine:
         self.provider_configs: Dict[LLMProvider, ProviderConfig] = {}
         self.health_monitor = HealthMonitor()
         self.cost_tracking: List[CostTracking] = []
+        self.config_manager = LLMConfigurationManager(settings)
         self._initialized = False
 
     async def initialize(self) -> None:
@@ -101,31 +103,65 @@ class LLMEngine:
         self,
         request: LLMRequest,
         preferred_provider: Optional[LLMProvider] = None,
+        page_url: Optional[str] = None,
+        project_id: Optional[str] = None,
     ) -> LLMResponse:
-        """Execute a chat completion with automatic failover."""
+        """Execute a chat completion with configuration-based model selection and fallback."""
         if not self._initialized:
             await self.initialize()
 
-        # Determine provider order
-        provider_order = self._get_provider_order(preferred_provider)
+        # Get fallback chain based on request type
+        fallback_chain = self.config_manager.get_fallback_chain(request.request_type)
+
+        # Override with preferred provider if specified
+        if preferred_provider:
+            fallback_chain = self._modify_chain_for_preferred_provider(fallback_chain, preferred_provider)
 
         last_error = None
-        for provider_type in provider_order:
+        for provider_type, model_id in fallback_chain:
             if provider_type not in self.providers:
+                _logger.debug(
+                    "provider_not_available",
+                    provider=provider_type.value,
+                    model=model_id,
+                )
                 continue
 
             provider = self.providers[provider_type]
 
             try:
+                # Create request with specific model
+                configured_request = LLMRequest(
+                    messages=request.messages,
+                    model=model_id,
+                    max_tokens=request.max_tokens,
+                    temperature=request.temperature,
+                    request_type=request.request_type,
+                    metadata=request.metadata,
+                )
+
                 _logger.debug(
                     "llm_request_attempt",
                     provider=provider_type.value,
+                    model=model_id,
                     request_type=request.request_type.value,
                 )
 
-                response = await provider.chat_completion(request)
+                response = await provider.chat_completion(configured_request)
 
-                # Track cost
+                # Record usage in configuration manager
+                self.config_manager.record_usage(
+                    request_type=request.request_type,
+                    provider=provider_type,
+                    model_id=response.model,
+                    prompt_tokens=response.usage.prompt_tokens,
+                    completion_tokens=response.usage.completion_tokens,
+                    cost=response.cost_estimate or 0.0,
+                    page_url=page_url,
+                    project_id=project_id,
+                )
+
+                # Track cost (legacy tracking)
                 if response.cost_estimate:
                     cost_record = CostTracking(
                         provider=provider_type,
@@ -144,6 +180,7 @@ class LLMEngine:
                     model=response.model,
                     tokens=response.usage.total_tokens,
                     cost=response.cost_estimate,
+                    fallback_used=fallback_chain.index((provider_type, model_id)) > 0,
                 )
 
                 return response
@@ -152,9 +189,9 @@ class LLMEngine:
                 _logger.error(
                     "llm_provider_auth_failed",
                     provider=provider_type.value,
+                    model=model_id,
                     error=str(e),
                 )
-                # Don't retry auth errors on the same provider
                 last_error = e
                 continue
 
@@ -162,6 +199,7 @@ class LLMEngine:
                 _logger.warning(
                     "llm_provider_failed",
                     provider=provider_type.value,
+                    model=model_id,
                     error=str(e),
                     retryable=e.retryable,
                 )
@@ -173,16 +211,38 @@ class LLMEngine:
                 _logger.warning(
                     "llm_provider_unexpected_error",
                     provider=provider_type.value,
+                    model=model_id,
                     error=str(e),
                 )
                 last_error = LLMError(f"Unexpected error: {e}", provider_type)
                 continue
 
-        # All providers failed
+        # All providers in chain failed
         if last_error:
             raise last_error
         else:
-            raise LLMError("All LLM providers failed and no providers available")
+            raise LLMError("All LLM providers in fallback chain failed")
+
+    def _modify_chain_for_preferred_provider(
+        self,
+        fallback_chain: List[Tuple[LLMProvider, str]],
+        preferred_provider: LLMProvider,
+    ) -> List[Tuple[LLMProvider, str]]:
+        """Modify fallback chain to prioritize preferred provider."""
+        # Find models for preferred provider in the chain
+        preferred_models = [
+            (provider, model) for provider, model in fallback_chain
+            if provider == preferred_provider
+        ]
+
+        # Find other models
+        other_models = [
+            (provider, model) for provider, model in fallback_chain
+            if provider != preferred_provider
+        ]
+
+        # Put preferred provider models first
+        return preferred_models + other_models
 
     def _get_provider_order(self, preferred_provider: Optional[LLMProvider] = None) -> List[LLMProvider]:
         """Get the order of providers to try, with preferred provider first."""
@@ -283,6 +343,9 @@ class LLMEngine:
 
     def get_usage_stats(self) -> Dict[str, Any]:
         """Get comprehensive usage statistics."""
+        # Get stats from both legacy tracking and configuration manager
+        config_stats = self.config_manager.get_configuration_summary()
+
         total_requests = len(self.cost_tracking)
         total_cost = self.get_total_cost()
 
@@ -295,12 +358,32 @@ class LLMEngine:
                 "total_tokens": sum(r.prompt_tokens + r.completion_tokens for r in provider_records),
             }
 
+        # Merge with configuration manager data
         return {
             "total_requests": total_requests,
             "total_cost": total_cost,
             "providers": provider_stats,
             "configured_providers": [p.value for p in self.providers.keys()],
+            "configuration": config_stats,
+            "model_usage": self.config_manager.get_usage_by_model(),
+            "recent_alerts": [alert.dict() for alert in self.config_manager.get_recent_alerts()],
         }
+
+    async def validate_configuration(self) -> Dict[str, Any]:
+        """Validate the current LLM configuration."""
+        return {
+            "model_validation": self.config_manager.validate_configuration(),
+            "provider_validation": await self.validate_all_providers(),
+            "configuration_summary": self.config_manager.get_configuration_summary(),
+        }
+
+    def get_model_for_request_type(self, request_type: LLMRequestType) -> Tuple[LLMProvider, str]:
+        """Get the configured model for a specific request type."""
+        return self.config_manager.get_model_for_request_type(request_type)
+
+    def get_fallback_chain(self, request_type: LLMRequestType) -> List[Tuple[LLMProvider, str]]:
+        """Get the fallback chain for a request type."""
+        return self.config_manager.get_fallback_chain(request_type)
 
     async def close(self) -> None:
         """Close all providers and clean up resources."""
