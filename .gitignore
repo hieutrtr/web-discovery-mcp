@@ -1,6 +1,7 @@
 .bmad-core
 .claude
 .gemini
+.crush
 docs/web_discovery
 
 # Python
