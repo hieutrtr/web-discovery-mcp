@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import Any
 
 import structlog
 from pydantic import BaseModel, Field
@@ -76,13 +77,18 @@ class LLMConfigurationManager:
         """Initialize model configuration from settings."""
         config = ModelConfiguration()
 
-        # Override with environment variables if provided
-        if self.settings.STEP1_MODEL:
-            config.step1_model = self.settings.STEP1_MODEL
-        if self.settings.STEP2_MODEL:
-            config.step2_model = self.settings.STEP2_MODEL
-        if self.settings.FALLBACK_MODEL:
-            config.fallback_model = self.settings.FALLBACK_MODEL
+        # Set initial values from environment variables
+        config.step1_model = self.settings.STEP1_MODEL or ""  # No default - must be set
+        config.step2_model = self.settings.STEP2_MODEL or ""  # No default - must be set
+        config.fallback_model = self.settings.FALLBACK_MODEL or ""  # No default - must be set
+
+        # Ensure at least initial models are provided
+        if not config.step1_model:
+            raise ValueError("STEP1_MODEL environment variable must be set - no default available")
+        if not config.step2_model:
+            raise ValueError("STEP2_MODEL environment variable must be set - no default available")
+        if not config.fallback_model:
+            raise ValueError("FALLBACK_MODEL environment variable must be set - no default available")
 
         # Resolve providers for each model
         try:
@@ -90,14 +96,10 @@ class LLMConfigurationManager:
             config.step2_provider, config.step2_model = self.model_registry.resolve_model(config.step2_model)
             config.fallback_provider, config.fallback_model = self.model_registry.resolve_model(config.fallback_model)
         except ValueError as e:
-            _logger.warning("model_resolution_failed", error=str(e))
-            # Use safe defaults
-            config.step1_model = "gpt-4.1-mini"
-            config.step1_provider = LLMProvider.OPENAI
-            config.step2_model = "gpt-4.1-mini"
-            config.step2_provider = LLMProvider.OPENAI
-            config.fallback_model = "claude-3-haiku-20240307"
-            config.fallback_provider = LLMProvider.ANTHROPIC
+            _logger.error("model_resolution_failed", error=str(e))
+            raise ValueError(
+                f"Failed to resolve configured models. Please check your model configuration: {e}"
+            ) from e
 
         _logger.info(
             "model_configuration_initialized",
@@ -119,11 +121,17 @@ class LLMConfigurationManager:
     def get_model_for_request_type(self, request_type: LLMRequestType) -> tuple[LLMProvider, str]:
         """Get the configured model for a specific request type."""
         if request_type == LLMRequestType.CONTENT_SUMMARY:
+            if self.model_config.step1_provider is None:
+                raise ValueError("step1_provider is not configured")
             return self.model_config.step1_provider, self.model_config.step1_model
         elif request_type == LLMRequestType.FEATURE_ANALYSIS:
+            if self.model_config.step2_provider is None:
+                raise ValueError("step2_provider is not configured")
             return self.model_config.step2_provider, self.model_config.step2_model
         else:
             # Use fallback for diagnostics and other types
+            if self.model_config.fallback_provider is None:
+                raise ValueError("fallback_provider is not configured")
             return self.model_config.fallback_provider, self.model_config.fallback_model
 
     def get_fallback_chain(self, request_type: LLMRequestType) -> list[tuple[LLMProvider, str]]:
@@ -135,8 +143,10 @@ class LLMConfigurationManager:
         )
 
         # Create fallback chain
+        if primary_provider is None or fallback_provider is None:
+            raise ValueError("Providers must be configured before creating fallback chain")
         chain = [(primary_provider, primary_model)]
-
+        
         # Add fallback if it's different from primary
         if (fallback_provider, fallback_model) != (primary_provider, primary_model):
             chain.append((fallback_provider, fallback_model))
@@ -329,13 +339,13 @@ class LLMConfigurationManager:
                     percentage=usage_percentage * 100,
                 )
 
-    def get_configuration_summary(self) -> dict[str, any]:
+    def get_configuration_summary(self) -> dict[str, Any]:
         """Get a summary of the current configuration."""
         return {
             "model_configuration": {
-                "step1": f"{self.model_config.step1_provider.value}:{self.model_config.step1_model}",
-                "step2": f"{self.model_config.step2_provider.value}:{self.model_config.step2_model}",
-                "fallback": f"{self.model_config.fallback_provider.value}:{self.model_config.fallback_model}",
+                "step1": f"{self.model_config.step1_provider.value if self.model_config.step1_provider else 'unknown'}:{self.model_config.step1_model}",
+                "step2": f"{self.model_config.step2_provider.value if self.model_config.step2_provider else 'unknown'}:{self.model_config.step2_model}",
+                "fallback": f"{self.model_config.fallback_provider.value if self.model_config.fallback_provider else 'unknown'}:{self.model_config.fallback_model}",
             },
             "budget_configuration": {
                 "monthly_limit": self.budget_config.monthly_limit,

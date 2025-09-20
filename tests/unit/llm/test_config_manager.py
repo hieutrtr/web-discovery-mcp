@@ -1,5 +1,7 @@
 """Tests for LLM configuration manager."""
 
+import pytest
+
 from legacy_web_mcp.config.settings import MCPSettings
 from legacy_web_mcp.llm.config_manager import LLMConfigurationManager
 from legacy_web_mcp.llm.models import LLMProvider, LLMRequestType
@@ -10,7 +12,14 @@ class TestLLMConfigurationManager:
 
     def test_initialization_with_defaults(self):
         """Test initialization with default settings."""
-        settings = MCPSettings()
+        settings = MCPSettings(
+            STEP1_MODEL="fast",
+            STEP2_MODEL="accurate", 
+            FALLBACK_MODEL="cheapest",
+            OPENAI_CHAT_MODEL="gpt-3.5-turbo",
+            ANTHROPIC_CHAT_MODEL="claude-3-haiku-20240307",
+            GEMINI_CHAT_MODEL="gemini-pro",
+        )
         manager = LLMConfigurationManager(settings)
 
         assert manager.model_config is not None
@@ -28,12 +37,20 @@ class TestLLMConfigurationManager:
         manager = LLMConfigurationManager(settings)
 
         # Should resolve logical names to actual models
-        assert manager.model_config.step1_provider == LLMProvider.OPENAI
-        assert manager.model_config.step1_model == "gpt-3.5-turbo"
+        # Should resolve logical names to actual models (updated 2024-2025)
+        assert manager.model_config.step1_provider == LLMProvider.GEMINI  # Updated: fast = gemini-2.0-flash-lite
+        assert manager.model_config.step1_model == "gemini-2.0-flash-lite"
 
     def test_get_model_for_request_type(self):
         """Test getting models for different request types."""
-        settings = MCPSettings()
+        settings = MCPSettings(
+            STEP1_MODEL="fast",
+            STEP2_MODEL="accurate", 
+            FALLBACK_MODEL="cheapest",
+            OPENAI_CHAT_MODEL="gpt-3.5-turbo",
+            ANTHROPIC_CHAT_MODEL="claude-3-haiku-20240307",
+            GEMINI_CHAT_MODEL="gemini-pro",
+        )
         manager = LLMConfigurationManager(settings)
 
         # Test different request types
@@ -51,7 +68,14 @@ class TestLLMConfigurationManager:
 
     def test_get_fallback_chain(self):
         """Test getting fallback chains for request types."""
-        settings = MCPSettings()
+        settings = MCPSettings(
+            STEP1_MODEL="fast",
+            STEP2_MODEL="accurate", 
+            FALLBACK_MODEL="cheapest",
+            OPENAI_CHAT_MODEL="gpt-3.5-turbo",
+            ANTHROPIC_CHAT_MODEL="claude-3-haiku-20240307",
+            GEMINI_CHAT_MODEL="gemini-pro",
+        )
         manager = LLMConfigurationManager(settings)
 
         chain = manager.get_fallback_chain(LLMRequestType.CONTENT_SUMMARY)
@@ -71,9 +95,9 @@ class TestLLMConfigurationManager:
     def test_validate_configuration(self):
         """Test configuration validation."""
         settings = MCPSettings(
-            STEP1_MODEL="gpt-3.5-turbo",
-            STEP2_MODEL="gpt-4",
-            FALLBACK_MODEL="claude-3-haiku-20240307",
+            STEP1_MODEL="gpt-4o-mini",
+      STEP2_MODEL="gpt-4.1",
+      FALLBACK_MODEL="claude-3-5-haiku-20241022",
         )
         manager = LLMConfigurationManager(settings)
 
@@ -89,23 +113,25 @@ class TestLLMConfigurationManager:
 
     def test_validate_configuration_with_invalid_models(self):
         """Test configuration validation with invalid models."""
+        # Should fail fast at initialization with invalid models
         settings = MCPSettings(
             STEP1_MODEL="nonexistent-model",
             STEP2_MODEL="gpt-4",
             FALLBACK_MODEL="claude-3-haiku-20240307",
         )
-        manager = LLMConfigurationManager(settings)
-
-        validation = manager.validate_configuration()
-
-        # step1_model should be invalid, others valid
-        assert validation["step1_model"] is False
-        assert validation["step2_model"] is True
-        assert validation["fallback_model"] is True
+        with pytest.raises(ValueError, match="Failed to resolve configured models"):
+            LLMConfigurationManager(settings)
 
     def test_record_usage(self):
         """Test recording usage for budget tracking."""
-        settings = MCPSettings()
+        settings = MCPSettings(
+            STEP1_MODEL="fast",
+            STEP2_MODEL="accurate", 
+            FALLBACK_MODEL="cheapest",
+            OPENAI_CHAT_MODEL="gpt-3.5-turbo",
+            ANTHROPIC_CHAT_MODEL="claude-3-haiku-20240307",
+            GEMINI_CHAT_MODEL="gemini-pro",
+        )
         manager = LLMConfigurationManager(settings)
 
         # Record some usage
@@ -134,7 +160,14 @@ class TestLLMConfigurationManager:
 
     def test_get_current_month_usage(self):
         """Test getting current month usage."""
-        settings = MCPSettings()
+        settings = MCPSettings(
+            STEP1_MODEL="fast",
+            STEP2_MODEL="accurate", 
+            FALLBACK_MODEL="cheapest",
+            OPENAI_CHAT_MODEL="gpt-3.5-turbo",
+            ANTHROPIC_CHAT_MODEL="claude-3-haiku-20240307",
+            GEMINI_CHAT_MODEL="gemini-pro",
+        )
         manager = LLMConfigurationManager(settings)
 
         # Add some usage records
@@ -156,7 +189,14 @@ class TestLLMConfigurationManager:
 
     def test_get_usage_by_model(self):
         """Test getting usage breakdown by model."""
-        settings = MCPSettings()
+        settings = MCPSettings(
+            STEP1_MODEL="fast",
+            STEP2_MODEL="accurate", 
+            FALLBACK_MODEL="cheapest",
+            OPENAI_CHAT_MODEL="gpt-3.5-turbo",
+            ANTHROPIC_CHAT_MODEL="claude-3-haiku-20240307",
+            GEMINI_CHAT_MODEL="gemini-pro",
+        )
         manager = LLMConfigurationManager(settings)
 
         # Add usage for different models
@@ -205,6 +245,12 @@ class TestLLMConfigurationManager:
     def test_budget_warning_threshold(self):
         """Test budget warning threshold triggers."""
         settings = MCPSettings(
+            STEP1_MODEL="fast",
+            STEP2_MODEL="accurate", 
+            FALLBACK_MODEL="cheapest",
+            OPENAI_CHAT_MODEL="gpt-3.5-turbo",
+            ANTHROPIC_CHAT_MODEL="claude-3-haiku-20240307",
+            GEMINI_CHAT_MODEL="gemini-pro",
             MONTHLY_BUDGET_LIMIT=10.0,
             BUDGET_WARNING_THRESHOLD=0.5,
         )
@@ -228,6 +274,12 @@ class TestLLMConfigurationManager:
     def test_budget_alert_threshold(self):
         """Test budget alert threshold triggers."""
         settings = MCPSettings(
+            STEP1_MODEL="fast",
+            STEP2_MODEL="accurate", 
+            FALLBACK_MODEL="cheapest",
+            OPENAI_CHAT_MODEL="gpt-3.5-turbo",
+            ANTHROPIC_CHAT_MODEL="claude-3-haiku-20240307",
+            GEMINI_CHAT_MODEL="gemini-pro",
             MONTHLY_BUDGET_LIMIT=10.0,
             BUDGET_ALERT_THRESHOLD=0.8,
         )
@@ -251,6 +303,12 @@ class TestLLMConfigurationManager:
     def test_no_duplicate_alerts(self):
         """Test that duplicate alerts aren't created in the same month."""
         settings = MCPSettings(
+            STEP1_MODEL="fast",
+            STEP2_MODEL="accurate", 
+            FALLBACK_MODEL="cheapest",
+            OPENAI_CHAT_MODEL="gpt-3.5-turbo",
+            ANTHROPIC_CHAT_MODEL="claude-3-haiku-20240307",
+            GEMINI_CHAT_MODEL="gemini-pro",
             MONTHLY_BUDGET_LIMIT=10.0,
             BUDGET_WARNING_THRESHOLD=0.5,
         )
@@ -316,6 +374,12 @@ class TestLLMConfigurationManager:
     def test_get_recent_alerts(self):
         """Test getting recent budget alerts."""
         settings = MCPSettings(
+            STEP1_MODEL="fast",
+            STEP2_MODEL="accurate", 
+            FALLBACK_MODEL="cheapest",
+            OPENAI_CHAT_MODEL="gpt-3.5-turbo",
+            ANTHROPIC_CHAT_MODEL="claude-3-haiku-20240307",
+            GEMINI_CHAT_MODEL="gemini-pro",
             MONTHLY_BUDGET_LIMIT=10.0,
             BUDGET_WARNING_THRESHOLD=0.5,
         )

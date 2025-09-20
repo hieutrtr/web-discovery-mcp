@@ -108,7 +108,7 @@ class GeminiProvider(LLMProviderInterface):
                 "parts": [{"text": msg.content}],
             })
 
-        model_name = request.model or self.config.model or "gemini-pro"
+        model_name = request.model or self.config.model
 
         payload = {
             "contents": gemini_contents,

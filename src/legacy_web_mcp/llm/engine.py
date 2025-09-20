@@ -46,15 +46,19 @@ class LLMEngine:
         if self.settings.OPENAI_API_KEY:
             try:
                 provider = OpenAIProvider()
+                # Use environment variable for model, with error if not set
+                if not self.settings.OPENAI_CHAT_MODEL:
+                    raise ValueError("OPENAI_CHAT_MODEL environment variable must be set when OpenAI API key is provided")
+                
                 config = ProviderConfig(
                     provider=LLMProvider.OPENAI,
                     api_key=self.settings.OPENAI_API_KEY.get_secret_value(),
-                    model="gpt-4.1-mini",
+                    model=self.settings.OPENAI_CHAT_MODEL,
                 )
                 await provider.initialize(config)
                 self.providers[LLMProvider.OPENAI] = provider
                 self.provider_configs[LLMProvider.OPENAI] = config
-                _logger.info("openai_provider_initialized")
+                _logger.info("openai_provider_initialized", model=self.settings.OPENAI_CHAT_MODEL)
             except Exception as e:
                 _logger.warning("openai_provider_init_failed", error=str(e))
 
@@ -62,15 +66,19 @@ class LLMEngine:
         if self.settings.ANTHROPIC_API_KEY:
             try:
                 provider = AnthropicProvider()
+                # Use environment variable for model, with error if not set
+                if not self.settings.ANTHROPIC_CHAT_MODEL:
+                    raise ValueError("ANTHROPIC_CHAT_MODEL environment variable must be set when Anthropic API key is provided")
+                
                 config = ProviderConfig(
                     provider=LLMProvider.ANTHROPIC,
                     api_key=self.settings.ANTHROPIC_API_KEY.get_secret_value(),
-                    model="claude-3-haiku-20240307",
+                    model=self.settings.ANTHROPIC_CHAT_MODEL,
                 )
                 await provider.initialize(config)
                 self.providers[LLMProvider.ANTHROPIC] = provider
                 self.provider_configs[LLMProvider.ANTHROPIC] = config
-                _logger.info("anthropic_provider_initialized")
+                _logger.info("anthropic_provider_initialized", model=self.settings.ANTHROPIC_CHAT_MODEL)
             except Exception as e:
                 _logger.warning("anthropic_provider_init_failed", error=str(e))
 
@@ -78,15 +86,19 @@ class LLMEngine:
         if self.settings.GEMINI_API_KEY:
             try:
                 provider = GeminiProvider()
+                # Use environment variable for model, with error if not set
+                if not self.settings.GEMINI_CHAT_MODEL:
+                    raise ValueError("GEMINI_CHAT_MODEL environment variable must be set when Gemini API key is provided")
+                
                 config = ProviderConfig(
                     provider=LLMProvider.GEMINI,
                     api_key=self.settings.GEMINI_API_KEY.get_secret_value(),
-                    model="gemini-pro",
+                    model=self.settings.GEMINI_CHAT_MODEL,
                 )
                 await provider.initialize(config)
                 self.providers[LLMProvider.GEMINI] = provider
                 self.provider_configs[LLMProvider.GEMINI] = config
-                _logger.info("gemini_provider_initialized")
+                _logger.info("gemini_provider_initialized", model=self.settings.GEMINI_CHAT_MODEL)
             except Exception as e:
                 _logger.warning("gemini_provider_init_failed", error=str(e))
 

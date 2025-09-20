@@ -31,6 +31,11 @@ class MCPSettings(BaseSettings):
     STEP1_MODEL: str | None = None
     STEP2_MODEL: str | None = None
     FALLBACK_MODEL: str | None = None
+    
+    # Provider-specific model configuration (no defaults - must be set)
+    OPENAI_CHAT_MODEL: str | None = None
+    ANTHROPIC_CHAT_MODEL: str | None = None
+    GEMINI_CHAT_MODEL: str | None = None
 
     # Budget monitoring configuration
     MONTHLY_BUDGET_LIMIT: float = Field(default=100.0)  # USD per month

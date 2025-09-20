@@ -111,7 +111,7 @@ class AnthropicProvider(LLMProviderInterface):
                 })
 
         payload = {
-            "model": request.model or self.config.model or "claude-3-haiku-20240307",
+            "model": request.model or self.config.model,
             "messages": anthropic_messages,
             "max_tokens": request.max_tokens or 4096,
         }
@@ -219,7 +219,7 @@ class AnthropicProvider(LLMProviderInterface):
             # Anthropic doesn't have a simple endpoint to test keys,
             # so we make a minimal request
             payload = {
-                "model": "claude-3-haiku-20240307",
+                "model": self.config.model,
                 "messages": [{"role": "user", "content": "Hi"}],
                 "max_tokens": 1,
             }

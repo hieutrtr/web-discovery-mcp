@@ -106,7 +106,7 @@ class OpenAIProvider(LLMProviderInterface):
             })
 
         payload = {
-            "model": request.model or self.config.model or "gpt-3.5-turbo",
+            "model": request.model or self.config.model,
             "messages": openai_messages,
         }
 

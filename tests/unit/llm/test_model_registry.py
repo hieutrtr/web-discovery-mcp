@@ -20,24 +20,24 @@ class TestModelRegistry:
 
         # Test logical mappings
         provider, model_id = registry.resolve_model("fast")
-        assert provider == LLMProvider.OPENAI
-        assert model_id == "gpt-3.5-turbo"
+        assert provider == LLMProvider.GEMINI  # Updated: Gemini 2.0 Flash Lite
+        assert model_id == "gemini-2.0-flash-lite"
 
         provider, model_id = registry.resolve_model("accurate")
-        assert provider == LLMProvider.OPENAI
-        assert model_id == "gpt-4-turbo"
+        assert provider == LLMProvider.OPENAI  # Updated: GPT-4.1 Mini
+        assert model_id == "gpt-4.1-mini"
 
     def test_resolve_actual_model(self):
         """Test resolving actual model IDs."""
         registry = ModelRegistry()
 
-        provider, model_id = registry.resolve_model("gpt-4")
+        provider, model_id = registry.resolve_model("gpt-4.1")
         assert provider == LLMProvider.OPENAI
-        assert model_id == "gpt-4"
+        assert model_id == "gpt-4.1"
 
-        provider, model_id = registry.resolve_model("claude-3-haiku-20240307")
+        provider, model_id = registry.resolve_model("claude-3-5-haiku-20241022")
         assert provider == LLMProvider.ANTHROPIC
-        assert model_id == "claude-3-haiku-20240307"
+        assert model_id == "claude-3-5-haiku-20241022"
 
     def test_resolve_invalid_model(self):
         """Test error handling for invalid model names."""
@@ -62,11 +62,11 @@ class TestModelRegistry:
         """Test getting model information."""
         registry = ModelRegistry()
 
-        model_info = registry.get_model_info("gpt-4")
+        model_info = registry.get_model_info("gpt-4.1")
         assert model_info is not None
         assert model_info.provider == LLMProvider.OPENAI
-        assert model_info.model_id == "gpt-4"
-        assert model_info.context_length == 8192
+        assert model_info.model_id == "gpt-4.1"
+        assert model_info.context_length == 1047576  # Updated
         assert model_info.cost_per_1k_prompt > 0
 
         # Test non-existent model
@@ -79,16 +79,16 @@ class TestModelRegistry:
 
         openai_models = registry.get_models_for_provider(LLMProvider.OPENAI)
         assert len(openai_models) > 0
-        assert "gpt-4" in openai_models
-        assert "gpt-3.5-turbo" in openai_models
+        assert "gpt-4.1" in openai_models
+        assert "gpt-4o-mini" in openai_models
 
         anthropic_models = registry.get_models_for_provider(LLMProvider.ANTHROPIC)
         assert len(anthropic_models) > 0
-        assert "claude-3-haiku-20240307" in anthropic_models
+        assert "claude-3-5-haiku-20241022" in anthropic_models
 
         gemini_models = registry.get_models_for_provider(LLMProvider.GEMINI)
         assert len(gemini_models) > 0
-        assert "gemini-pro" in gemini_models
+        assert "gemini-2.0-flash-lite" in gemini_models
 
     def test_get_recommended_model(self):
         """Test getting recommended models for request types."""
@@ -124,9 +124,9 @@ class TestModelRegistry:
         registry = ModelRegistry()
 
         # Test valid models
-        assert registry.validate_model_exists("gpt-4")
+        assert registry.validate_model_exists("gpt-4.1")
         assert registry.validate_model_exists("fast")  # logical name
-        assert registry.validate_model_exists("claude-3-haiku-20240307")
+        assert registry.validate_model_exists("claude-3-5-haiku-20241022")
 
         # Test invalid models
         assert not registry.validate_model_exists("nonexistent-model")
@@ -148,15 +148,15 @@ class TestModelRegistry:
 
         model_ids = registry.get_all_model_ids()
         assert len(model_ids) > 0
-        assert "gpt-4" in model_ids
-        assert "claude-3-haiku-20240307" in model_ids
-        assert "gemini-pro" in model_ids
+        assert "gpt-4.1" in model_ids
+        assert "claude-3-5-haiku-20241022" in model_ids
+        assert "gemini-2.0-flash-lite" in model_ids
 
     def test_get_model_cost_info(self):
         """Test getting model cost information."""
         registry = ModelRegistry()
 
-        prompt_cost, completion_cost = registry.get_model_cost_info("gpt-4")
+        prompt_cost, completion_cost = registry.get_model_cost_info("gpt-4.1")
         assert prompt_cost > 0
         assert completion_cost > 0
 
@@ -170,11 +170,11 @@ class TestModelRegistry:
         registry = ModelRegistry()
 
         # Test with known model
-        cost = registry.calculate_cost("gpt-4", 1000, 500)
+        cost = registry.calculate_cost("gpt-4.1", 1000, 500)
         assert cost > 0
 
         # Cost should be proportional to token count
-        double_cost = registry.calculate_cost("gpt-4", 2000, 1000)
+        double_cost = registry.calculate_cost("gpt-4.1", 2000, 1000)
         assert abs(double_cost - (cost * 2)) < 0.001
 
         # Test with unknown model
@@ -185,26 +185,32 @@ class TestModelRegistry:
         """Test provider-specific logical shortcuts."""
         registry = ModelRegistry()
 
-        # Test OpenAI shortcuts
+        # Test OpenAI shortcuts (updated 2024-2025)
         provider, model = registry.resolve_model("openai-fast")
         assert provider == LLMProvider.OPENAI
+        assert model == "gpt-4o-mini"
 
         provider, model = registry.resolve_model("openai-best")
         assert provider == LLMProvider.OPENAI
+        assert model == "gpt-4.1"
 
-        # Test Anthropic shortcuts
+        # Test Anthropic shortcuts (updated 2024-2025)
         provider, model = registry.resolve_model("anthropic-fast")
         assert provider == LLMProvider.ANTHROPIC
+        assert model == "claude-3-5-haiku-20241022"
 
         provider, model = registry.resolve_model("anthropic-best")
         assert provider == LLMProvider.ANTHROPIC
+        assert model == "claude-3-5-sonnet-20241022"
 
-        # Test Gemini shortcuts
+        # Test Gemini shortcuts (updated 2024-2025)
         provider, model = registry.resolve_model("gemini-fast")
         assert provider == LLMProvider.GEMINI
+        assert model == "gemini-2.0-flash-lite"
 
         provider, model = registry.resolve_model("gemini-best")
         assert provider == LLMProvider.GEMINI
+        assert model == "gemini-2.5-flash"
 
     def test_cost_tier_mappings(self):
         """Test cost-based model mappings."""
