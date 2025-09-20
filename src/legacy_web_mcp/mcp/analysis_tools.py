@@ -16,8 +16,118 @@ from legacy_web_mcp.storage.projects import create_project_store
 _logger = structlog.get_logger("legacy_web_mcp.mcp.analysis_tools")
 
 
+from legacy_web_mcp.llm.analysis.step1_summarize import ContentSummarizer
+from legacy_web_mcp.llm.engine import LLMEngine
+
+
 def register(mcp: FastMCP) -> None:
     """Register page analysis tools with the MCP server."""
+
+    @mcp.tool()
+    async def summarize_page_content(
+        context: Context,
+        url: str,
+        project_id: str = "content-summary",
+        browser_engine: str = "chromium",
+    ) -> Dict[str, Any]:
+        """Performs Step 1 Content Summarization analysis on a single page.
+
+        Args:
+            url: The target URL to summarize.
+            project_id: A project identifier for the analysis session.
+            browser_engine: The browser engine to use.
+
+        Returns:
+            A dictionary containing the structured content summary.
+        """
+        try:
+            config = load_configuration()
+            _logger.info("page_content_summarization_started", url=url, project_id=project_id)
+
+            browser_service = BrowserAutomationService(config)
+            project_store = create_project_store(config)
+            llm_engine = LLMEngine(config)
+
+            project_metadata = project_store.get_project_metadata(project_id)
+            if not project_metadata:
+                project_metadata = project_store.create_project(
+                    project_id=project_id,
+                    website_url=url,
+                    config={"analysis_type": "content-summary"}
+                )
+            
+            analyzer = PageAnalyzer()
+            async with browser_service.get_session(
+                project_id=project_id,
+                engine=BrowserEngine(browser_engine),
+                headless=config.BROWSER_HEADLESS
+            ) as session:
+                page_data = await analyzer.analyze_page(session.page, url, project_metadata.root_path)
+
+            summarizer = ContentSummarizer(llm_engine)
+            content_summary = await summarizer.summarize_page(page_data)
+
+            _logger.info("page_content_summarization_completed", url=url)
+            return {"status": "success", "summary": content_summary.dict()}
+
+        except Exception as e:
+            await context.error(f"Content summarization failed: {e}")
+            _logger.error("page_content_summarization_failed", url=url, error=str(e))
+            return {"status": "error", "error": str(e)}
+
+
+    @mcp.tool()
+    async def summarize_page_content(
+        context: Context,
+        url: str,
+        project_id: str = "content-summary",
+        browser_engine: str = "chromium",
+    ) -> Dict[str, Any]:
+        """Performs Step 1 Content Summarization analysis on a single page.
+
+        Args:
+            url: The target URL to summarize.
+            project_id: A project identifier for the analysis session.
+            browser_engine: The browser engine to use.
+
+        Returns:
+            A dictionary containing the structured content summary.
+        """
+        try:
+            config = load_configuration()
+            _logger.info("page_content_summarization_started", url=url, project_id=project_id)
+
+            browser_service = BrowserAutomationService(config)
+            project_store = create_project_store(config)
+            llm_engine = LLMEngine(config)
+
+            project_metadata = project_store.get_project_metadata(project_id)
+            if not project_metadata:
+                project_metadata = project_store.create_project(
+                    project_id=project_id,
+                    website_url=url,
+                    config={"analysis_type": "content-summary"}
+                )
+            
+            analyzer = PageAnalyzer()
+            async with browser_service.get_session(
+                project_id=project_id,
+                engine=BrowserEngine(browser_engine),
+                headless=config.BROWSER_HEADLESS
+            ) as session:
+                page_data = await analyzer.analyze_page(session.page, url, project_metadata.root_path)
+
+            summarizer = ContentSummarizer(llm_engine)
+            content_summary = await summarizer.summarize_page(page_data)
+
+            _logger.info("page_content_summarization_completed", url=url)
+            return {"status": "success", "summary": content_summary.dict()}
+
+        except Exception as e:
+            await context.error(f"Content summarization failed: {e}")
+            _logger.error("page_content_summarization_failed", url=url, error=str(e))
+            return {"status": "error", "error": str(e)}
+
 
     @mcp.tool()
     async def analyze_page_comprehensive(
