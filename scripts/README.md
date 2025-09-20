@@ -218,7 +218,66 @@ python scripts/diagnostics_client.py health
 python scripts/diagnostics_client.py deps
 ```
 
-### 9. `check_env.py` - Environment Variable Validation
+### 9. `test_page_analysis.py` - Page Analysis Data Collection Testing
+
+Tests the comprehensive page analysis functionality from Story 2.5, including DOM structure analysis, technology detection, accessibility evaluation, performance metrics, and page categorization for LLM processing.
+
+**Usage:**
+```bash
+# Run all page analysis tests
+python scripts/test_page_analysis.py all
+
+# Test specific components
+python scripts/test_page_analysis.py comprehensive     # Test comprehensive analysis with all features
+python scripts/test_page_analysis.py dom_structure    # Test DOM structure analysis specifically
+python scripts/test_page_analysis.py technology       # Test technology detection capabilities
+python scripts/test_page_analysis.py mcp_tools        # Test MCP tools for page analysis
+python scripts/test_page_analysis.py simple           # Test basic analysis without extra features
+```
+
+**Examples:**
+```bash
+# Test comprehensive page analysis
+python scripts/test_page_analysis.py comprehensive
+
+# Test technology detection
+python scripts/test_page_analysis.py technology
+
+# Test MCP tools via client
+python scripts/test_page_analysis.py mcp_tools
+```
+
+### 10. `test_sequential_workflow.py` - Sequential Navigation Workflow Testing
+
+Tests the sequential navigation workflow functionality from Story 2.6, including queue management, progress tracking, error recovery, checkpoint creation, and resource management for processing multiple pages systematically.
+
+**Usage:**
+```bash
+# Run all workflow tests
+python scripts/test_sequential_workflow.py all
+
+# Test specific components
+python scripts/test_sequential_workflow.py basic_workflow     # Test basic multi-page workflow execution
+python scripts/test_sequential_workflow.py queue_control     # Test pause, resume, stop, skip functionality
+python scripts/test_sequential_workflow.py error_recovery    # Test error handling and retry mechanisms
+python scripts/test_sequential_workflow.py checkpointing     # Test checkpoint creation and resumption
+python scripts/test_sequential_workflow.py mcp_tools         # Test MCP tools for workflow management
+python scripts/test_sequential_workflow.py performance       # Test workflow performance and resource management
+```
+
+**Examples:**
+```bash
+# Test basic workflow execution
+python scripts/test_sequential_workflow.py basic_workflow
+
+# Test queue control operations
+python scripts/test_sequential_workflow.py queue_control
+
+# Test checkpoint functionality
+python scripts/test_sequential_workflow.py checkpointing
+```
+
+### 11. `check_env.py` - Environment Variable Validation
 
 CLI utility to ensure required environment variables are present for proper MCP server operation.
 
@@ -293,6 +352,21 @@ The server provides these tools that you can test:
 | `interact_with_page` | Perform automated interactions with webpage | `url`, `enable_form_interactions` (optional), `session_id` (optional) |
 | `explore_navigation_menu` | Explore navigation menus to discover pages | `url`, `max_depth` (optional), `session_id` (optional) |
 | `test_form_interactions` | Test form interactions safely | `url`, `safe_mode` (optional), `session_id` (optional) |
+
+### Page Analysis Tools (Story 2.5)
+| Tool | Description | Arguments |
+|------|-------------|-----------|
+| `analyze_page_comprehensive` | Perform comprehensive page analysis with all data collection | `url`, `project_id` (optional), `include_network_monitoring` (optional), `include_interaction_simulation` (optional), `save_analysis_data` (optional), `browser_engine` (optional) |
+| `analyze_dom_structure` | Analyze DOM structure and element categorization | `url`, `project_id` (optional), `browser_engine` (optional) |
+| `detect_technologies` | Detect JavaScript frameworks, libraries, and technologies | `url`, `project_id` (optional), `browser_engine` (optional) |
+
+### Sequential Workflow Tools (Story 2.6)
+| Tool | Description | Arguments |
+|------|-------------|-----------|
+| `analyze_page_list` | Process multiple pages systematically with queue management | `urls` (array), `project_id` (optional), `max_retries_per_page` (optional), `include_network_monitoring` (optional), `enable_checkpointing` (optional), `max_concurrent_sessions` (optional) |
+| `control_workflow` | Control active workflow (pause, resume, stop, skip) | `workflow_id`, `action` |
+| `resume_workflow_from_checkpoint` | Resume workflow from checkpoint file | `checkpoint_path`, `project_id` (optional) |
+| `list_active_workflows` | List all currently active workflows | None |
 
 ## Environment Setup
 
