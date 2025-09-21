@@ -555,18 +555,28 @@ class LegacyAnalysisOrchestrator:
         step2_summary = {}
         if "step2_analysis_results" in analysis_results:
             step2_data = analysis_results["step2_analysis_results"]
-            step2_summary = {
-                "feature_analysis_coverage": f"{step2_data['successful_analyses']}/{pages_analyzed}",
-                "average_feature_complexity": "medium",  # Could calculate from actual data
-                "api_integrations_found": sum(
-                    r.get("feature_analysis", {}).get("api_integrations", 0)
-                    for r in step2_data.get("results", [])
-                ),
-                "interactive_elements_total": sum(
-                    r.get("feature_analysis", {}).get("interactive_elements", 0)
-                    for r in step2_data.get("results", [])
-                ),
-            }
+            # Check if step2_data has the expected structure (not empty when Step 2 was skipped)
+            if step2_data and "successful_analyses" in step2_data:
+                step2_summary = {
+                    "feature_analysis_coverage": f"{step2_data['successful_analyses']}/{pages_analyzed}",
+                    "average_feature_complexity": "medium",  # Could calculate from actual data
+                    "api_integrations_found": sum(
+                        r.get("feature_analysis", {}).get("api_integrations", 0)
+                        for r in step2_data.get("results", [])
+                    ),
+                    "interactive_elements_total": sum(
+                        r.get("feature_analysis", {}).get("interactive_elements", 0)
+                        for r in step2_data.get("results", [])
+                    ),
+                }
+            else:
+                # Step 2 was skipped or failed
+                step2_summary = {
+                    "feature_analysis_coverage": "0/0 (Step 2 analysis skipped)",
+                    "average_feature_complexity": "not_analyzed",
+                    "api_integrations_found": 0,
+                    "interactive_elements_total": 0,
+                }
 
         # Technology assessment
         tech_assessment = {

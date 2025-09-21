@@ -124,6 +124,22 @@ class WorkflowProgress:
                     microsecond=0
                 ) + timedelta(seconds=estimated_remaining_seconds)
 
+    def to_dict(self) -> dict[str, Any]:
+        """Convert progress to dictionary for JSON serialization."""
+        return {
+            "total_pages": self.total_pages,
+            "completed_pages": self.completed_pages,
+            "failed_pages": self.failed_pages,
+            "skipped_pages": self.skipped_pages,
+            "current_page_index": self.current_page_index,
+            "current_page_url": self.current_page_url,
+            "workflow_start_time": self.workflow_start_time.isoformat() if self.workflow_start_time else None,
+            "workflow_end_time": self.workflow_end_time.isoformat() if self.workflow_end_time else None,
+            "estimated_completion_time": self.estimated_completion_time.isoformat() if self.estimated_completion_time else None,
+            "average_page_processing_time": self.average_page_processing_time,
+            "pages_per_minute": self.pages_per_minute,
+        }
+
 
 @dataclass(slots=True)
 class WorkflowCheckpoint:
@@ -507,7 +523,7 @@ class SequentialNavigationWorkflow:
             workflow_id=self.workflow_id,
             created_at=datetime.now(UTC),
             page_tasks=[self._serialize_page_task(task) for task in self.page_tasks],
-            progress=asdict(self.progress),
+            progress=self.progress.to_dict(),
             configuration=self.analyzer_config,
         )
 
