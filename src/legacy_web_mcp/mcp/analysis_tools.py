@@ -1,8 +1,9 @@
 """MCP tools for comprehensive page analysis data collection."""
+
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import Any, List
 
 import structlog
 from fastmcp import Context, FastMCP
@@ -11,12 +12,12 @@ from legacy_web_mcp.browser import BrowserAutomationService, BrowserEngine
 from legacy_web_mcp.browser.analysis import PageAnalyzer
 from legacy_web_mcp.config.loader import load_configuration
 from legacy_web_mcp.storage.projects import create_project_store
+from legacy_web_mcp.llm.analysis.step1_summarize import ContentSummarizer
+from legacy_web_mcp.llm.analysis.step2_feature_analysis import FeatureAnalyzer
+from legacy_web_mcp.llm.engine import LLMEngine
+from legacy_web_mcp.llm.models import ContentSummary
 
 _logger = structlog.get_logger("legacy_web_mcp.mcp.analysis_tools")
-
-
-from legacy_web_mcp.llm.analysis.step1_summarize import ContentSummarizer
-from legacy_web_mcp.llm.engine import LLMEngine
 
 
 def register(mcp: FastMCP) -> None:
@@ -50,10 +51,9 @@ def register(mcp: FastMCP) -> None:
             project_record = project_store.load_project(project_id)
             if not project_record:
                 project_record = project_store.initialize_project(
-                    url,
-                    configuration_snapshot={"analysis_type": "content-summary"}
+                    url, configuration_snapshot={"analysis_type": "content-summary"}
                 )
-            
+
             analyzer = PageAnalyzer()
             await browser_service.initialize()
             page = await browser_service.navigate_page(project_id, url)
@@ -69,56 +69,6 @@ def register(mcp: FastMCP) -> None:
             await context.error(f"Content summarization failed: {e}")
             _logger.error("page_content_summarization_failed", url=url, error=str(e))
             return {"status": "error", "error": str(e)}
-
-
-    @mcp.tool()
-    async def summarize_page_content(
-        context: Context,
-        url: str,
-        project_id: str = "content-summary",
-        browser_engine: str = "chromium",
-    ) -> dict[str, Any]:
-        """Performs Step 1 Content Summarization analysis on a single page.
-
-        Args:
-            url: The target URL to summarize.
-            project_id: A project identifier for the analysis session.
-            browser_engine: The browser engine to use.
-
-        Returns:
-            A dictionary containing the structured content summary.
-        """
-        try:
-            config = load_configuration()
-            _logger.info("page_content_summarization_started", url=url, project_id=project_id)
-
-            browser_service = BrowserAutomationService(config)
-            project_store = create_project_store(config)
-            llm_engine = LLMEngine(config)
-
-            project_record = project_store.load_project(project_id)
-            if not project_record:
-                project_record = project_store.initialize_project(
-                    url,
-                    configuration_snapshot={"analysis_type": "content-summary"}
-                )
-            
-            analyzer = PageAnalyzer()
-            await browser_service.initialize()
-            page = await browser_service.navigate_page(project_id, url)
-            page_data = await analyzer.analyze_page(page, url, project_record.paths.root)
-
-            summarizer = ContentSummarizer(llm_engine)
-            content_summary = await summarizer.summarize_page(page_data)
-
-            _logger.info("page_content_summarization_completed", url=url)
-            return {"status": "success", "summary": content_summary.model_dump()}
-
-        except Exception as e:
-            await context.error(f"Content summarization failed: {e}")
-            _logger.error("page_content_summarization_failed", url=url, error=str(e))
-            return {"status": "error", "error": str(e)}
-
 
     @mcp.tool()
     async def analyze_page_comprehensive(
@@ -203,7 +153,7 @@ def register(mcp: FastMCP) -> None:
                     project_metadata = project_store.create_project(
                         project_id=project_id,
                         website_url=url,
-                        config={"analysis_type": "comprehensive"}
+                        config={"analysis_type": "comprehensive"},
                     )
                 project_root = project_metadata.root_path
 
@@ -217,7 +167,7 @@ def register(mcp: FastMCP) -> None:
             async with browser_service.get_session(
                 project_id=project_id,
                 engine=BrowserEngine(browser_engine),
-                headless=config.BROWSER_HEADLESS
+                headless=config.BROWSER_HEADLESS,
             ) as session:
                 page = session.page
 
@@ -237,8 +187,11 @@ def register(mcp: FastMCP) -> None:
                     # Generate filename from URL
                     import hashlib
                     from urllib.parse import urlparse
+
                     parsed = urlparse(url)
-                    clean_path = "".join(c for c in parsed.path if c.isalnum() or c in "-_")[:50] or "index"
+                    clean_path = (
+                        "".join(c for c in parsed.path if c.isalnum() or c in "-_")[:50] or "index"
+                    )
                     url_hash = hashlib.md5(url.encode()).hexdigest()[:8]
                     filename = f"{clean_path}-{url_hash}.json"
 
@@ -261,7 +214,9 @@ def register(mcp: FastMCP) -> None:
 
                 # Technology stack summary
                 technology_stack = {
-                    "javascript_frameworks": [fw.value for fw in analysis_result.technology_analysis.js_frameworks],
+                    "javascript_frameworks": [
+                        fw.value for fw in analysis_result.technology_analysis.js_frameworks
+                    ],
                     "javascript_libraries": analysis_result.technology_analysis.js_libraries,
                     "css_frameworks": analysis_result.technology_analysis.css_frameworks,
                     "cms_detected": analysis_result.technology_analysis.cms_detection,
@@ -270,11 +225,19 @@ def register(mcp: FastMCP) -> None:
 
                 # Performance metrics summary
                 performance_metrics = {
-                    "load_time_seconds": analysis_result.performance_analysis.navigation_timing.get("total_load", 0) / 1000,
-                    "total_resource_size_kb": analysis_result.performance_analysis.total_resource_size / 1024,
-                    "javascript_bundle_size_kb": analysis_result.performance_analysis.javascript_bundle_size / 1024,
-                    "css_bundle_size_kb": analysis_result.performance_analysis.css_bundle_size / 1024,
-                    "resource_count": analysis_result.performance_analysis.resource_timing.get("resource_count", 0),
+                    "load_time_seconds": analysis_result.performance_analysis.navigation_timing.get(
+                        "total_load", 0
+                    )
+                    / 1000,
+                    "total_resource_size_kb": analysis_result.performance_analysis.total_resource_size
+                    / 1024,
+                    "javascript_bundle_size_kb": analysis_result.performance_analysis.javascript_bundle_size
+                    / 1024,
+                    "css_bundle_size_kb": analysis_result.performance_analysis.css_bundle_size
+                    / 1024,
+                    "resource_count": analysis_result.performance_analysis.resource_timing.get(
+                        "resource_count", 0
+                    ),
                     "optimization_score": analysis_result.performance_analysis.image_optimization_score,
                 }
 
@@ -282,7 +245,9 @@ def register(mcp: FastMCP) -> None:
                 accessibility_score = {
                     "semantic_elements": analysis_result.dom_analysis.semantic_elements,
                     "aria_usage_count": len(analysis_result.accessibility_analysis.aria_labels),
-                    "heading_structure_quality": _assess_heading_structure(analysis_result.accessibility_analysis),
+                    "heading_structure_quality": _assess_heading_structure(
+                        analysis_result.accessibility_analysis
+                    ),
                     "alt_text_coverage": len(analysis_result.accessibility_analysis.alt_texts),
                     "accessibility_violations": analysis_result.accessibility_analysis.accessibility_violations,
                 }
@@ -399,7 +364,7 @@ def register(mcp: FastMCP) -> None:
             async with browser_service.get_session(
                 project_id=project_id,
                 engine=BrowserEngine(browser_engine),
-                headless=config.BROWSER_HEADLESS
+                headless=config.BROWSER_HEADLESS,
             ) as session:
                 page = session.page
 
@@ -604,7 +569,7 @@ def register(mcp: FastMCP) -> None:
             async with browser_service.get_session(
                 project_id=project_id,
                 engine=BrowserEngine(browser_engine),
-                headless=config.BROWSER_HEADLESS
+                headless=config.BROWSER_HEADLESS,
             ) as session:
                 page = session.page
 
@@ -789,6 +754,157 @@ def register(mcp: FastMCP) -> None:
                 "error_type": type(e).__name__,
             }
 
+    @mcp.tool()
+    async def analyze_page_features(
+        context: Context,
+        url: str,
+        page_content: str | None = None,
+        include_step1_summary: bool = True,
+        project_id: str = "feature-analysis",
+        browser_engine: str = "chromium",
+    ) -> dict[str, Any]:
+        """Performs Step 2 Feature Analysis on a single page to extract detailed technical specifications.
+
+        Uses the sophisticated FeatureAnalyzer to identify interactive elements, API integrations,
+        business rules, third-party services, and rebuild specifications. This provides the detailed
+        technical analysis needed for comprehensive site rebuilding documentation.
+
+        Args:
+            url: Target URL to analyze for features (required)
+            page_content: Optional page content JSON string. If not provided, will fetch from URL.
+            include_step1_summary: Whether to perform Step 1 summary first for context (default: True)
+            project_id: Project identifier for session management (default: "feature-analysis")
+            browser_engine: Browser engine to use - "chromium", "firefox", or "webkit" (default: "chromium")
+
+        Returns:
+            Dictionary containing:
+            - status: "success" or "error"
+            - url: Analyzed URL
+            - interactive_elements: List of interactive UI components with selectors and behaviors
+            - functional_capabilities: Core features and services identified on the page
+            - api_integrations: API endpoints and integration points discovered
+            - business_rules: Business logic and validation rules found
+            - third_party_integrations: External service integrations detected
+            - rebuild_specifications: Technical specifications for rebuilding each component
+            - confidence_score: Analysis confidence level (0.0-1.0)
+            - quality_score: Analysis quality score based on completeness
+            - step1_context: Content summary used for analysis context
+
+        Feature Analysis Components:
+            - Interactive Elements: Buttons, forms, inputs, navigation components with detailed metadata
+            - Functional Capabilities: Core features like search, authentication, data processing
+            - API Integrations: REST endpoints, GraphQL, WebSocket connections, authentication methods
+            - Business Rules: Validation logic, user permissions, data constraints, error handling
+            - Third-party Services: Analytics, payment, social media, CDN, external APIs
+            - Rebuild Specifications: Priority-scored technical requirements for reconstruction
+
+        Analysis Process:
+            1. Optionally performs Step 1 content summarization for business context
+            2. Analyzes page DOM structure for interactive elements
+            3. Examines network traffic for API integrations
+            4. Identifies JavaScript patterns for business logic
+            5. Detects third-party service integrations
+            6. Generates prioritized rebuild specifications
+        """
+        try:
+            config = load_configuration()
+            _logger.info(
+                "feature_analysis_started",
+                url=url,
+                include_step1_summary=include_step1_summary,
+                browser_engine=browser_engine,
+            )
+
+            # Initialize services
+            browser_service = BrowserAutomationService(config)
+            project_store = create_project_store(config)
+            llm_engine = LLMEngine(config)
+
+            # Get or create project
+            project_record = project_store.load_project(project_id)
+            if not project_record:
+                project_record = project_store.initialize_project(
+                    url, configuration_snapshot={"analysis_type": "feature-analysis"}
+                )
+
+            # Initialize browser if we need to fetch content
+            page_analysis_data = None
+            if not page_content:
+                await browser_service.initialize()
+                page = await browser_service.navigate_page(project_id, url)
+
+                # Use PageAnalyzer to get comprehensive page data
+                analyzer = PageAnalyzer()
+                page_analysis_data = await analyzer.analyze_page(
+                    page, url, project_record.paths.root
+                )
+            else:
+                # Parse provided page content
+                try:
+                    content_data = (
+                        json.loads(page_content) if isinstance(page_content, str) else page_content
+                    )
+                    # Extract title from content data or use URL as fallback
+                    title = content_data.get("title", url.split("//")[-1].split("/")[0])
+                    # Create minimal PageAnalysisData from provided content
+                    from legacy_web_mcp.browser.analysis import PageAnalysisData
+
+                    page_analysis_data = PageAnalysisData(
+                        url=url,
+                        title=title,
+                        page_content=content_data,
+                        analysis_duration=0.0,
+                    )
+                except Exception as e:
+                    raise ValueError(f"Invalid page_content format: {e}") from e
+
+            # Perform Step 1 summary if requested
+            step1_context = None
+            if include_step1_summary:
+                summarizer = ContentSummarizer(llm_engine)
+                step1_context = await summarizer.summarize_page(page_analysis_data)
+            else:
+                # Create minimal context for standalone analysis
+                step1_context = ContentSummary(
+                    purpose="Feature analysis without step 1 context",
+                    user_context="General web page users",
+                    business_logic="Standard web page functionality",
+                    navigation_role="Standalone page",
+                    confidence_score=0.5,
+                )
+
+            # Use FeatureAnalyzer for detailed analysis
+            feature_analyzer = FeatureAnalyzer(llm_engine)
+            feature_analysis = await feature_analyzer.analyze_features(
+                page_analysis_data=page_analysis_data, step1_context=step1_context
+            )
+
+            _logger.info("feature_analysis_completed", url=url)
+
+            return {
+                "status": "success",
+                "url": url,
+                "interactive_elements": feature_analysis.interactive_elements,
+                "functional_capabilities": feature_analysis.functional_capabilities,
+                "api_integrations": feature_analysis.api_integrations,
+                "business_rules": feature_analysis.business_rules,
+                "third_party_integrations": feature_analysis.third_party_integrations,
+                "rebuild_specifications": feature_analysis.rebuild_specifications,
+                "confidence_score": feature_analysis.confidence_score,
+                "quality_score": feature_analysis.quality_score,
+                "step1_context": step1_context.model_dump() if step1_context else None,
+            }
+
+        except Exception as e:
+            await context.error(f"Feature analysis failed: {e}")
+            _logger.error(
+                "feature_analysis_failed",
+                url=url,
+                error=str(e),
+                error_type=type(e).__name__,
+            )
+            return {"status": "error", "url": url, "error": str(e), "error_type": type(e).__name__}
+
 
 def _calculate_complexity_score(analysis_result) -> int:
     """Calculate overall complexity score from analysis results."""
@@ -867,7 +983,9 @@ def _assess_accessibility_compliance(analysis_result) -> dict[str, Any]:
     score = 100
 
     # Check for common accessibility issues
-    if analysis_result.dom_analysis.image_elements > len(analysis_result.accessibility_analysis.alt_texts):
+    if analysis_result.dom_analysis.image_elements > len(
+        analysis_result.accessibility_analysis.alt_texts
+    ):
         violations.append("missing_alt_text")
         score -= 20
 
@@ -879,7 +997,10 @@ def _assess_accessibility_compliance(analysis_result) -> dict[str, Any]:
         violations.append("poor_heading_structure")
         score -= 15
 
-    if analysis_result.dom_analysis.form_elements > 0 and not analysis_result.accessibility_analysis.semantic_roles:
+    if (
+        analysis_result.dom_analysis.form_elements > 0
+        and not analysis_result.accessibility_analysis.semantic_roles
+    ):
         violations.append("unlabeled_form_controls")
         score -= 25
 
@@ -963,7 +1084,7 @@ def _assess_heading_structure(accessibility_analysis) -> str:
 
     # Check for level skipping
     for i in range(1, len(levels)):
-        if levels[i] - levels[i-1] > 1:
+        if levels[i] - levels[i - 1] > 1:
             return "moderate"
 
     return "good"
@@ -996,12 +1117,14 @@ def _analyze_validation_patterns(form_details) -> dict[str, Any]:
                 validation_summary["range_validation"] += 1
 
     # Determine complexity
-    validation_count = sum([
-        validation_summary["required_fields"],
-        validation_summary["pattern_validation"],
-        validation_summary["length_validation"],
-        validation_summary["range_validation"],
-    ])
+    validation_count = sum(
+        [
+            validation_summary["required_fields"],
+            validation_summary["pattern_validation"],
+            validation_summary["length_validation"],
+            validation_summary["range_validation"],
+        ]
+    )
 
     if validation_count > total_fields * 0.7:
         validation_summary["complexity_score"] = "complex"
@@ -1013,7 +1136,9 @@ def _analyze_validation_patterns(form_details) -> dict[str, Any]:
     return validation_summary
 
 
-def _assess_technology_modernization(tech_analysis, deep_scan_results, version_info) -> dict[str, Any]:
+def _assess_technology_modernization(
+    tech_analysis, deep_scan_results, version_info
+) -> dict[str, Any]:
     """Assess technology modernization needs."""
     priority = "low"
     recommendations = []
@@ -1047,7 +1172,11 @@ def _assess_technology_modernization(tech_analysis, deep_scan_results, version_i
         "priority": priority,
         "modernization_score": max(modern_score, 0),
         "recommendations": recommendations,
-        "technology_age": "legacy" if modern_score < 50 else "modern" if modern_score > 80 else "mixed",
+        "technology_age": "legacy"
+        if modern_score < 50
+        else "modern"
+        if modern_score > 80
+        else "mixed",
     }
 
 

@@ -220,6 +220,85 @@ class ContentSummary(BaseModel):
     )
 
 
+class InteractiveElement(BaseModel):
+    """Interactive element found on a page."""
+    
+    type: str = Field(description="Element type (button, form, input, etc.)")
+    selector: str = Field(description="CSS selector or element identifier")
+    purpose: str = Field(description="What the element does")
+    behavior: str = Field(description="How the element behaves (click, submit, etc.)")
+
+
+class FunctionalCapability(BaseModel):
+    """Functional capability identified on a page."""
+    
+    name: str = Field(description="Capability name")
+    description: str = Field(description="What the capability does")
+    type: str = Field(description="Type of capability (feature, service, etc.)")
+    complexity_score: float | None = Field(None, description="Complexity rating 0.0-1.0")
+
+
+class APIIntegration(BaseModel):
+    """API integration found on a page."""
+    
+    endpoint: str = Field(description="API endpoint URL")
+    method: str = Field(default="GET", description="HTTP method")
+    purpose: str = Field(description="What the API does")
+    data_flow: str = Field(description="Data flow direction")
+    auth_type: str | None = Field(None, description="Authentication type")
+
+
+class BusinessRule(BaseModel):
+    """Business rule identified on a page."""
+    
+    name: str = Field(description="Rule name")
+    description: str = Field(description="What the rule does")
+    validation_logic: str = Field(description="How the rule works")
+    error_handling: str | None = Field(None, description="Error handling approach")
+
+
+class ThirdPartyIntegration(BaseModel):
+    """Third-party service integration."""
+    
+    service_name: str = Field(description="Service name")
+    integration_type: str = Field(description="Type of integration")
+    purpose: str = Field(description="What the integration does")
+    auth_method: str | None = Field(None, description="Authentication method")
+
+
+class RebuildSpecification(BaseModel):
+    """Specification for rebuilding a component or feature."""
+    
+    name: str = Field(description="Specification name")
+    description: str = Field(description="What needs to be built")
+    priority_score: float = Field(description="Priority 0.0-1.0")
+    complexity: str = Field(default="medium", description="Complexity level")
+    dependencies: list[str] = Field(default_factory=list, description="Dependencies")
+
+
+class FeatureAnalysis(BaseModel):
+    """Step 2 LLM analysis output with detailed feature breakdown."""
+    
+    interactive_elements: list[InteractiveElement] = Field(default_factory=list)
+    functional_capabilities: list[FunctionalCapability] = Field(default_factory=list)
+    api_integrations: list[APIIntegration] = Field(default_factory=list)
+    business_rules: list[BusinessRule] = Field(default_factory=list)
+    third_party_integrations: list[ThirdPartyIntegration] = Field(default_factory=list)
+    rebuild_specifications: list[RebuildSpecification] = Field(default_factory=list)
+    confidence_score: float = Field(
+        default=0.0,
+        description="Analysis confidence level (0.0-1.0)",
+        ge=0.0,
+        le=1.0
+    )
+    quality_score: float = Field(
+        default=0.0,
+        description="Analysis quality score (0.0-1.0)",
+        ge=0.0,
+        le=1.0
+    )
+
+
 __all__ = [
     # Enums
     "LLMProvider",
@@ -235,6 +314,13 @@ __all__ = [
     "ProviderConfig",
     "CostTracking",
     "ContentSummary",
+    "InteractiveElement",
+    "FunctionalCapability", 
+    "APIIntegration",
+    "BusinessRule",
+    "ThirdPartyIntegration",
+    "RebuildSpecification",
+    "FeatureAnalysis",
     # Exceptions
     "LLMError",
     "AuthenticationError",
