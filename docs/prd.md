@@ -612,9 +612,84 @@ so that I understand what's happening and can resolve issues without technical d
 6. Feedback collection mechanism for improving analysis quality and user experience
 7. Help system accessible through MCP prompts providing guidance for common questions
 
-## Epic 6: AI-Powered Navigation Intelligence (Simplified)
+## Epic 6: AI-Powered Navigation Intelligence & Workflow Orchestration
 
-**Epic Goal:** Add AI-powered navigation planning that reads page content to generate simple navigation sequences, enabling discovery of functionality beyond basic URL crawling.
+**Epic Goal:** Transform tool-centric architecture into intelligent, conversational AI workflows by adding AI-powered navigation planning and comprehensive workflow orchestration that enables natural language site analysis through AI development environments.
+
+### Story 6.1: AI Navigation Plan Generation
+
+As a user,
+I want AI to read page content and generate a navigation plan,
+so that I can discover interactive functionality that requires specific click sequences or form interactions.
+
+**Acceptance Criteria:**
+1. LLM analysis of page content to identify clickable elements, forms, and navigation options
+2. Simple navigation plan generation: "click button X, then fill form Y, then click Z"
+3. Navigation sequence documentation with clear step-by-step instructions
+4. Safety checks to avoid destructive actions (delete buttons, irreversible operations)
+5. Navigation plan limited to 3-5 steps maximum to keep complexity manageable
+6. Integration with existing page analysis as optional enhancement
+7. Configuration via `ENABLE_AI_NAVIGATION=true/false` environment variable
+
+### Story 6.2: Navigation Plan Execution
+
+As a user,
+I want to execute AI-generated navigation plans automatically,
+so that I can analyze pages and functionality that are only accessible through specific interaction sequences.
+
+**Acceptance Criteria:**
+1. Automated execution of AI-generated navigation sequences using Playwright
+2. Error handling for navigation failures with recovery attempts
+3. Documentation of discovered pages and functionality during navigation
+4. Integration with existing analysis pipeline for newly discovered pages
+5. Progress tracking for navigation plan execution with status updates
+6. Safety mechanisms to stop execution if unexpected behavior detected
+7. Results integration with existing page analysis and documentation system
+
+### Story 6.3: Step 2 Feature Analysis MCP Integration
+
+As a developer using AI development environments,
+I want the sophisticated FeatureAnalyzer accessible through MCP tools,
+so that I can perform detailed feature analysis on individual pages without manual orchestration.
+
+**Acceptance Criteria:**
+1. FeatureAnalyzer (implemented in Story 3.4) exposed as `analyze_page_features()` MCP tool
+2. Tool accepts page URL and content data, returns structured feature analysis
+3. Analysis includes interactive elements, API integrations, and rebuild specifications
+4. Batch processing support for multiple pages with progress tracking
+5. Integration with existing error handling and quality validation (Story 3.6)
+6. Compatibility with progress tracking system (Story 4.1) and checkpointing (Story 4.2)
+7. Performance optimization through caching and concurrent processing
+
+### Story 6.4: High-Level Workflow Orchestration Tools
+
+As a developer using AI development environments,
+I want a high-level orchestration tool that combines all existing MCP tools into intelligent workflows,
+so that I can perform complete site analysis through natural conversational interactions instead of manually coordinating 15+ individual tools.
+
+**Acceptance Criteria:**
+1. Single orchestration tool `analyze_legacy_site()` manages complete "URL → discovery → analysis → documentation" workflow
+2. Natural language instructions translated into appropriate tool sequences
+3. Progress tracking integrated throughout orchestrated workflow with unified status reporting
+4. Cross-tool error recovery and intelligent retry logic with graceful degradation
+5. Comprehensive result aggregation into actionable rebuild documentation
+6. Support for both interactive mode (with checkpoints) and YOLO mode (fully automated)
+7. Configuration propagation through all orchestrated tools (LLM selection, browser settings, etc.)
+
+### Story 6.5: AI-Driven Site Analysis Workflow
+
+As a developer using AI development environments,
+I want an intelligent site analysis workflow that uses AI to orchestrate the complete analysis process,
+so that I can get comprehensive legacy application analysis through natural conversation instead of manually coordinating multiple tools.
+
+**Acceptance Criteria:**
+1. Single conversational command initiates complete site analysis workflow
+2. AI intelligently decides analysis scope, depth, and tool selection based on site characteristics and patterns
+3. Automatic handling of common site types (e-commerce, admin panels, content sites, etc.) with appropriate strategies
+4. Natural language progress updates throughout analysis with context-aware messaging
+5. AI-synthesized results with prioritized rebuild recommendations and executive summary
+6. Adaptive analysis strategy based on site complexity, user requirements, and historical patterns
+7. Full integration with existing tool ecosystem while adding conversational AI interface
 
 ### Story 6.1: AI Navigation Plan Generation
 
