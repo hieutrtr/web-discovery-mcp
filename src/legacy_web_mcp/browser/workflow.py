@@ -4,7 +4,7 @@ from __future__ import annotations
 import asyncio
 import json
 from dataclasses import asdict, dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from enum import Enum
 from pathlib import Path
 from typing import Any
@@ -122,7 +122,7 @@ class WorkflowProgress:
                 estimated_remaining_seconds = self.pending_pages * self.average_page_processing_time
                 self.estimated_completion_time = datetime.now(UTC).replace(
                     microsecond=0
-                ) + datetime.timedelta(seconds=estimated_remaining_seconds)
+                ) + timedelta(seconds=estimated_remaining_seconds)
 
 
 @dataclass(slots=True)
