@@ -190,11 +190,25 @@ class LegacyAnalysisOrchestrator:
             # Basic site discovery
             discovery_data = await self.discovery_service.discover(context, url)
 
-            if discovery_data.get("status") != "success":
-                raise WorkflowPlanningError(f"Site discovery failed: {discovery_data.get('error', 'Unknown error')}")
+            # Discovery service returns inventory structure, not status/urls directly
+            inventory = discovery_data.get("inventory", {})
+            if not inventory:
+                raise WorkflowPlanningError(f"Site discovery failed: No inventory data returned")
 
-            all_urls = discovery_data.get("urls", [])
-            site_info = discovery_data.get("site_info", {})
+            # Extract URLs from inventory structure (URLs are grouped by category)
+            url_groups = inventory.get("urls", {})
+            all_urls = []
+
+            # Collect URLs from all categories: internal_pages, external_pages, assets
+            for category in ["internal_pages", "external_pages", "assets"]:
+                for url_record in url_groups.get(category, []):
+                    if isinstance(url_record, dict) and "url" in url_record:
+                        all_urls.append(url_record["url"])
+            site_info = {
+                "domain": discovery_data.get("domain", ""),
+                "summary": discovery_data.get("summary", {}),
+                "sources": discovery_data.get("sources", {})
+            }
 
             if not all_urls:
                 raise WorkflowPlanningError(f"No URLs discovered for {url}")

@@ -362,11 +362,16 @@ class SequentialNavigationWorkflow:
             session_id = f"{self.workflow_id}_{task.page_id}"
             self._current_sessions.add(session_id)
 
-            async with self.browser_service.get_session(
-                project_id=session_id,
-                headless=True,
-            ) as session:
-                page = session.page
+            # Get or create session
+            session = await self.browser_service.get_session(session_id)
+            if not session:
+                session = await self.browser_service.create_session(
+                    project_id=session_id,
+                    headless=True,
+                )
+
+            try:
+                page = await session.create_page()
 
                 # Perform page analysis
                 analysis_result = await analyzer.analyze_page(
@@ -392,39 +397,43 @@ class SequentialNavigationWorkflow:
                     analysis_duration=analysis_result.analysis_duration,
                 )
 
-        except Exception as e:
-            task.processing_end_time = datetime.now(UTC)
-            task.error_message = str(e)
+            except Exception as e:
+                task.processing_end_time = datetime.now(UTC)
+                task.error_message = str(e)
 
-            if task.can_retry:
-                task.status = PageProcessingStatus.RETRYING
-                _logger.warning(
-                    "page_processing_retry",
-                    workflow_id=self.workflow_id,
-                    page_url=task.url,
-                    page_id=task.page_id,
-                    attempt=task.attempts,
-                    max_attempts=task.max_attempts,
-                    error=str(e),
-                )
+                if task.can_retry:
+                    task.status = PageProcessingStatus.RETRYING
+                    _logger.warning(
+                        "page_processing_retry",
+                        workflow_id=self.workflow_id,
+                        page_url=task.url,
+                        page_id=task.page_id,
+                        attempt=task.attempts,
+                        max_attempts=task.max_attempts,
+                        error=str(e),
+                    )
 
-                # Retry with exponential backoff
-                wait_time = min(2 ** (task.attempts - 1), 30)  # Max 30 seconds
-                await asyncio.sleep(wait_time)
+                    # Retry with exponential backoff
+                    wait_time = min(2 ** (task.attempts - 1), 30)  # Max 30 seconds
+                    await asyncio.sleep(wait_time)
 
-                await self._process_single_page(task)
-            else:
-                task.status = PageProcessingStatus.FAILED
-                self.progress.failed_pages += 1
-                _logger.error(
-                    "page_processing_failed_permanently",
-                    workflow_id=self.workflow_id,
-                    page_url=task.url,
-                    page_id=task.page_id,
-                    attempts=task.attempts,
-                    error=str(e),
-                )
-                raise
+                    await self._process_single_page(task)
+                else:
+                    task.status = PageProcessingStatus.FAILED
+                    self.progress.failed_pages += 1
+                    _logger.error(
+                        "page_processing_failed_permanently",
+                        workflow_id=self.workflow_id,
+                        page_url=task.url,
+                        page_id=task.page_id,
+                        attempts=task.attempts,
+                        error=str(e),
+                    )
+                    raise
+
+            finally:
+                # Cleanup session
+                await self.browser_service.close_session(session_id)
 
         finally:
             self._current_sessions.discard(session_id)

@@ -501,6 +501,68 @@ python scripts/orchestration_usage_example.py
 # )
 ```
 
+### 15b. `test_orchestration_with_real_analysis.py` - Story 6.4 Real Orchestration Testing
+
+Tests the **actual orchestration functionality** of Story 6.4 by executing real `analyze_legacy_site` workflows on live websites with complete end-to-end analysis.
+
+**Prerequisites:**
+```bash
+# Install Playwright browsers
+uv run playwright install
+
+# Optional: Set up LLM API keys for full analysis
+export OPENAI_API_KEY="your-key-here"
+# OR
+export ANTHROPIC_API_KEY="your-key-here"
+# OR
+export GEMINI_API_KEY="your-key-here"
+```
+
+**Usage:**
+```bash
+# Run real orchestration tests (costs ~$0.10-0.50)
+python scripts/test_orchestration_with_real_analysis.py
+```
+
+**What This Test Does:**
+- 🌐 Makes **real website requests** to live sites (httpbin.org, example.com)
+- 🎭 Tests **complete orchestration workflow** with actual analysis
+- 🔍 Validates **intelligent site discovery** and page prioritization
+- 📊 Tests **AI-driven analysis strategy** recommendations
+- 💰 Demonstrates **cost optimization** and performance tracking
+- 📈 Tests **workflow monitoring** and status tracking
+- 🛡️ Validates **error handling** with invalid inputs
+
+**Tests All 3 Main Orchestration Tools:**
+1. **`analyze_legacy_site`** - Primary orchestration workflow
+2. **`analyze_with_recommendations`** - AI strategy selection
+3. **`get_analysis_status`** - Progress monitoring
+
+**Example Output:**
+```bash
+✅ REAL ORCHESTRATION ANALYSIS SUCCESSFUL!
+📊 Workflow Overview:
+   Project ID: real-orchestration-test
+   Total Pages Found: 12
+   Pages Selected: 3
+   Pages Analyzed: 3
+   Analysis Mode: quick
+
+💰 Cost Analysis:
+   Estimated Cost: $0.15
+   Cost Per Page: $0.05
+   Processing Time: 90s
+
+🔍 Site Discovery:
+   Discovery Method: sitemap
+   Site Type: api_documentation
+
+🤖 AI-Selected Strategy:
+   Recommended Mode: quick
+   Cost Priority: cost_efficient
+   Reasoning: Simple site with clear structure
+```
+
 ## Available MCP Tools
 
 The server provides these tools that you can test:

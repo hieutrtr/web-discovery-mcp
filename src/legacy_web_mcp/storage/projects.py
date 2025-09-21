@@ -79,6 +79,13 @@ class ProjectMetadata:
             discovered_url_count=count,
         )
 
+    @property
+    def root_path(self) -> Path:
+        """Get the root path for this project."""
+        # This is a temporary implementation - in practice this should be calculated 
+        # from a base directory and project_id
+        return Path("docs/web_discovery") / self.project_id
+
 
 @dataclass(frozen=True, slots=True)
 class ProjectRecord:
@@ -188,6 +195,31 @@ class ProjectStore:
             inventory_yaml_path=root / "discovery" / "inventory.yaml",
         )
         return ProjectRecord(paths=paths, metadata=metadata)
+
+    def get_project_metadata(self, project_id: str) -> ProjectMetadata | None:
+        """Get just the metadata for a project without loading the full project record."""
+        project = self.load_project(project_id)
+        return project.metadata if project else None
+
+    def create_project(self, project_id: str, website_url: str, config: dict[str, Any]) -> ProjectMetadata:
+        """Create a new project and return its metadata."""
+        from urllib.parse import urlparse
+        import time
+        
+        # Extract domain from URL
+        domain = urlparse(website_url).netloc or "unknown-domain"
+        
+        # Create timestamps
+        now = datetime.now(tz=UTC)
+        
+        # Initialize the project (this will create directories and persist metadata)
+        project_record = self.initialize_project(
+            domain_or_url=website_url,  # Fixed parameter name
+            configuration_snapshot=config,
+            created_at=now
+        )
+        
+        return project_record.metadata
 
     def list_projects(self) -> list[ProjectMetadata]:
         """Return metadata for all discoverable projects."""
