@@ -232,6 +232,233 @@ class LLMEngine:
         else:
             raise LLMError("All LLM providers in fallback chain failed")
 
+    async def chat_completion_with_validation(
+        self,
+        request: LLMRequest,
+        analysis_type: str,  # "step1" or "step2"
+        preferred_provider: LLMProvider | None = None,
+        page_url: str | None = None,
+        project_id: str | None = None,
+        max_retries: int = 3,
+        quality_threshold: float = 0.6,
+    ) -> Tuple[LLMResponse, 'ValidationResult', 'QualityMetrics']:
+        """Execute chat completion with quality validation and intelligent retry.
+        
+        Args:
+            request: LLM request to execute
+            analysis_type: Type of analysis ("step1" or "step2") for validation
+            preferred_provider: Preferred provider to try first
+            page_url: URL being analyzed (for logging)
+            project_id: Project identifier (for tracking)
+            max_retries: Maximum number of retry attempts
+            quality_threshold: Minimum quality score to accept
+            
+        Returns:
+            Tuple of (LLM response, validation result, quality metrics)
+            
+        Raises:
+            LLMError: If all retries fail or quality cannot be achieved
+        """
+        # Import here to avoid circular dependency
+        from legacy_web_mcp.llm.quality import ResponseValidator, QualityAnalyzer, ErrorCode, AnalysisError
+        
+        validator = ResponseValidator()
+        quality_analyzer = QualityAnalyzer()
+        
+        retry_count = 0
+        last_error = None
+        best_response = None
+        best_validation = None
+        best_quality = None
+        
+        while retry_count <= max_retries:
+            try:
+                # Adjust prompt for retry if needed
+                adjusted_request = self._adjust_prompt_for_retry(request, retry_count, analysis_type)
+                
+                # Execute base chat completion with fallback
+                response = await self.chat_completion(
+                    request=adjusted_request,
+                    preferred_provider=preferred_provider,
+                    page_url=page_url,
+                    project_id=project_id
+                )
+                
+                # Validate response structure and content
+                try:
+                    response_data = json.loads(response.content)
+                except json.JSONDecodeError as e:
+                    _logger.warning(
+                        "llm_response_invalid_json",
+                        retry_count=retry_count,
+                        error=str(e),
+                        response_preview=response.content[:200] if response.content else None
+                    )
+                    
+                    if retry_count == max_retries:
+                        raise LLMError(
+                            f"Failed to get valid JSON after {max_retries} retries: {str(e)}",
+                            provider=response.provider if hasattr(response, 'provider') else None
+                        )
+                    
+                    retry_count += 1
+                    continue
+                
+                # Perform schema and quality validation
+                if analysis_type == "step1":
+                    validation_result = validator.validate_step1_response(response_data)
+                elif analysis_type == "step2":
+                    validation_result = validator.validate_step2_response(response_data)
+                else:
+                    raise ValueError(f"Unknown analysis type: {analysis_type}")
+                
+                # Calculate quality metrics
+                quality_metrics = quality_analyzer.calculate_quality_metrics(
+                    analysis_data=response_data,
+                    analysis_type=analysis_type
+                )
+                
+                # Check if response meets quality threshold
+                meets_threshold = (
+                    validation_result.is_valid and
+                    quality_metrics.overall_quality_score >= quality_threshold
+                )
+                
+                # Keep track of best response so far
+                if (best_quality is None or 
+                    quality_metrics.overall_quality_score > best_quality.overall_quality_score):
+                    best_response = response
+                    best_validation = validation_result
+                    best_quality = quality_metrics
+                
+                if meets_threshold:
+                    _logger.info(
+                        "llm_validation_success",
+                        analysis_type=analysis_type,
+                        retry_count=retry_count,
+                        quality_score=quality_metrics.overall_quality_score,
+                        validation_passed=validation_result.is_valid,
+                        provider=response.provider if hasattr(response, 'provider') else "unknown"
+                    )
+                    return response, validation_result, quality_metrics
+                
+                # Log validation failure
+                _logger.warning(
+                    "llm_validation_failed",
+                    analysis_type=analysis_type,
+                    retry_count=retry_count,
+                    quality_score=quality_metrics.overall_quality_score,
+                    validation_errors=validation_result.errors,
+                    quality_issues=quality_metrics.quality_issues,
+                    provider=response.provider if hasattr(response, 'provider') else "unknown"
+                )
+                
+                if retry_count == max_retries:
+                    # Return best response if we've exhausted retries
+                    _logger.warning(
+                        "llm_max_retries_reached",
+                        analysis_type=analysis_type,
+                        best_quality_score=best_quality.overall_quality_score if best_quality else 0.0,
+                        threshold=quality_threshold
+                    )
+                    
+                    if best_response and best_validation and best_quality:
+                        return best_response, best_validation, best_quality
+                    else:
+                        raise LLMError(
+                            f"Failed to achieve quality threshold {quality_threshold} after {max_retries} retries"
+                        )
+                
+                retry_count += 1
+                
+                # Add exponential backoff for rate limiting
+                if retry_count > 1:
+                    import asyncio
+                    backoff_delay = min(2 ** (retry_count - 1), 30)  # Max 30 seconds
+                    _logger.debug("retry_backoff", delay=backoff_delay, retry_count=retry_count)
+                    await asyncio.sleep(backoff_delay)
+                    
+            except LLMError as e:
+                last_error = e
+                _logger.error(
+                    "llm_request_failed_during_validation",
+                    analysis_type=analysis_type,
+                    retry_count=retry_count,
+                    error=str(e),
+                    error_code=ErrorCode.LLM_001
+                )
+                
+                if retry_count == max_retries:
+                    if best_response and best_validation and best_quality:
+                        _logger.warning(
+                            "returning_best_partial_result",
+                            analysis_type=analysis_type,
+                            best_quality_score=best_quality.overall_quality_score
+                        )
+                        return best_response, best_validation, best_quality
+                    else:
+                        raise e
+                
+                retry_count += 1
+                
+            except Exception as e:
+                last_error = LLMError(f"Unexpected error during validation: {str(e)}")
+                _logger.error(
+                    "unexpected_validation_error",
+                    analysis_type=analysis_type,
+                    retry_count=retry_count,
+                    error=str(e),
+                    error_code=ErrorCode.VAL_005
+                )
+                
+                if retry_count == max_retries:
+                    raise last_error
+                
+                retry_count += 1
+        
+        # Should not reach here, but safety fallback
+        if last_error:
+            raise last_error
+        else:
+            raise LLMError(f"Analysis validation failed after {max_retries} retries")
+
+    def _adjust_prompt_for_retry(self, request: LLMRequest, retry_count: int, analysis_type: str) -> LLMRequest:
+        """Adjust prompt for retry attempts to improve response quality."""
+        if retry_count == 0:
+            return request
+            
+        # Create adjusted messages
+        adjusted_messages = []
+        
+        for message in request.messages:
+            if message.role == LLMRole.SYSTEM:
+                # Enhance system prompt for retries
+                enhanced_content = message.content
+                
+                if retry_count == 1:
+                    enhanced_content += "\n\nIMPORTANT: Ensure your response is complete, well-structured JSON with all required fields filled. Provide specific, detailed information rather than generic descriptions."
+                elif retry_count == 2:
+                    enhanced_content += "\n\nCRITICAL: Previous attempts had quality issues. Focus on:\n- Complete JSON structure with all required fields\n- Specific technical details rather than generic terms\n- Concrete examples and clear descriptions\n- Proper data types for all fields"
+                elif retry_count >= 3:
+                    enhanced_content += "\n\nFINAL ATTEMPT: This is the last retry. Ensure maximum quality:\n- Thorough analysis with rich detail\n- Complete technical specifications\n- Specific implementation information\n- High confidence in all assessments"
+                    
+                adjusted_messages.append(LLMMessage(role=message.role, content=enhanced_content))
+            else:
+                adjusted_messages.append(message)
+        
+        return LLMRequest(
+            messages=adjusted_messages,
+            model=request.model,
+            max_tokens=request.max_tokens,
+            temperature=max(0.1, request.temperature - (retry_count * 0.1)),  # Reduce temperature for retries
+            request_type=request.request_type,
+            metadata={
+                **(request.metadata or {}),
+                'retry_count': retry_count,
+                'retry_reason': 'quality_improvement'
+            }
+        )
+
     def _modify_chain_for_preferred_provider(
         self,
         fallback_chain: list[tuple[LLMProvider, str]],

@@ -862,78 +862,321 @@ class LegacyAnalysisOrchestrator:
     async def _execute_step2_analysis(
         self, context: Context, completed_pages: List[Any], strategy: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Execute Step 2 feature analysis on completed pages."""
+        """Execute Step 2 feature analysis on completed pages with quality validation and artifact management."""
 
         feature_analyzer = FeatureAnalyzer(self.llm_engine)
         content_summarizer = ContentSummarizer(self.llm_engine)
+
+        # Initialize artifact manager for debugging and persistence
+        from legacy_web_mcp.llm.artifacts import ArtifactManager
+        from legacy_web_mcp.llm.debugging import DebugInspector
+        
+        artifact_manager = ArtifactManager()
+        debug_inspector = DebugInspector(artifact_manager)
 
         step2_results = []
         confidence_threshold = strategy["step2_confidence_threshold"]
 
         for task in completed_pages:
+            # Create artifact for this page analysis
+            artifact = None
+            debug_session = None
+            
             try:
                 if not task.analysis_result:
                     continue
 
-                # Perform Step 1 summarization first
-                step1_summary = await content_summarizer.summarize_page(task.analysis_result)
+                # Create analysis artifact for persistence and debugging
+                artifact = artifact_manager.create_artifact(
+                    analysis_type="step2_with_step1",
+                    page_url=task.url,
+                    page_analysis_data=task.analysis_result,
+                    project_id=self.project_id,
+                    metadata={
+                        "page_id": task.page_id,
+                        "workflow_id": self.workflow_id,
+                        "strategy": strategy,
+                        "processing_start": time.time()
+                    }
+                )
+
+                # Start debug session for detailed monitoring
+                debug_session = debug_inspector.start_debug_session(
+                    page_url=task.url,
+                    analysis_type="step2_with_step1",
+                    session_id=f"{artifact.artifact_id}_debug"
+                )
+
+                # Perform Step 1 summarization first with quality validation
+                try:
+                    step1_summary = await content_summarizer.summarize_page(task.analysis_result)
+                    
+                    # Add Step 1 result to artifact
+                    artifact_manager.add_analysis_result(
+                        artifact=artifact,
+                        result=step1_summary
+                    )
+                    
+                    # Log Step 1 completion
+                    _logger.info(
+                        "step1_summary_completed",
+                        url=task.url,
+                        confidence_score=step1_summary.confidence_score,
+                        artifact_id=artifact.artifact_id
+                    )
+
+                except Exception as step1_error:
+                    error_msg = f"Step 1 analysis failed: {str(step1_error)}"
+                    _logger.error(
+                        "step1_analysis_failed_in_orchestration",
+                        url=task.url,
+                        error=str(step1_error),
+                        artifact_id=artifact.artifact_id
+                    )
+                    
+                    # Add error to artifact
+                    artifact_manager.add_error(
+                        artifact=artifact,
+                        error=step1_error,
+                        context={
+                            "phase": "step1_summarization",
+                            "page_url": task.url,
+                            "page_id": task.page_id
+                        }
+                    )
+                    
+                    step2_results.append({
+                        "url": task.url,
+                        "page_id": task.page_id,
+                        "error": error_msg,
+                        "artifact_id": artifact.artifact_id,
+                        "error_phase": "step1"
+                    })
+                    
+                    artifact_manager.complete_artifact(artifact, status="failed")
+                    continue
 
                 # Only proceed with Step 2 if confidence is sufficient
                 if step1_summary.confidence_score >= confidence_threshold:
-                    # Create context payload for Step 2
-                    context_payload = ContextPayload(content_summary=step1_summary)
+                    try:
+                        # Create context payload for Step 2
+                        context_payload = ContextPayload(content_summary=step1_summary)
 
-                    # Use context-aware feature analysis
-                    feature_analysis = await feature_analyzer.analyze_features_with_context(
-                        page_analysis_data=task.analysis_result,
-                        context_payload=context_payload,
-                    )
-
-                    # Create and append the combined analysis result
-                    combined_result = CombinedAnalysisResult(
-                        content_summary=step1_summary,
-                        feature_analysis=feature_analysis,
-                        context_payload=context_payload,
-                        consistency_validation=feature_analysis.context_validation,
-                    )
-                    combined_result.calculate_overall_metrics()
-
-                    # Log a warning if inconsistencies are found
-                    if combined_result.consistency_validation and combined_result.consistency_validation.action_required:
-                        _logger.warning(
-                            "Inconsistency found between Step 1 and Step 2 analysis",
-                            url=task.url,
-                            page_id=task.page_id,
-                            inconsistencies=combined_result.consistency_validation.inconsistencies,
+                        # Use context-aware feature analysis with validation
+                        feature_analysis = await feature_analyzer.analyze_features_with_context(
+                            page_analysis_data=task.analysis_result,
+                            context_payload=context_payload,
                         )
 
-                    step2_results.append(combined_result)
+                        # Add Step 2 result to artifact
+                        artifact_manager.add_analysis_result(
+                            artifact=artifact,
+                            result=feature_analysis
+                        )
+
+                        # Create and append the combined analysis result
+                        combined_result = CombinedAnalysisResult(
+                            content_summary=step1_summary,
+                            feature_analysis=feature_analysis,
+                            context_payload=context_payload,
+                            consistency_validation=feature_analysis.context_validation,
+                        )
+                        combined_result.calculate_overall_metrics()
+
+                        # Update artifact with combined metrics
+                        artifact.metadata.update({
+                            "overall_quality_score": combined_result.overall_quality_score,
+                            "analysis_completeness": combined_result.analysis_completeness,
+                            "context_utilization_score": combined_result.context_utilization_score,
+                            "cross_reference_score": combined_result.cross_reference_score,
+                            "processing_end": time.time()
+                        })
+
+                        # Log quality assessment to debug session
+                        if hasattr(feature_analysis, 'metadata') and feature_analysis.metadata:
+                            quality_metrics = feature_analysis.metadata.get('quality_metrics')
+                            validation_result = feature_analysis.metadata.get('validation_result')
+                            
+                            if quality_metrics and validation_result:
+                                from legacy_web_mcp.llm.quality import QualityMetrics, ValidationResult
+                                
+                                quality_obj = QualityMetrics(**quality_metrics)
+                                validation_obj = ValidationResult(**validation_result)
+                                
+                                debug_inspector.log_quality_assessment(
+                                    session_id=debug_session.session_id,
+                                    quality_metrics=quality_obj,
+                                    validation_result=validation_obj,
+                                    decision_rationale=f"Step 2 analysis completed with quality score {quality_obj.overall_quality_score:.2f}"
+                                )
+
+                        # Log a warning if inconsistencies are found
+                        if combined_result.consistency_validation and combined_result.consistency_validation.action_required:
+                            inconsistency_warning = {
+                                "message": "Inconsistency found between Step 1 and Step 2 analysis",
+                                "inconsistencies": combined_result.consistency_validation.inconsistencies,
+                                "consistency_score": combined_result.consistency_validation.consistency_score
+                            }
+                            
+                            _logger.warning(
+                                "step_consistency_validation_failed",
+                                url=task.url,
+                                page_id=task.page_id,
+                                **inconsistency_warning
+                            )
+                            
+                            # Add warning to artifact
+                            artifact.warnings.append(f"Consistency validation failed: {inconsistency_warning['message']}")
+                            
+                            # Log consistency issue to debug session
+                            debug_inspector.log_retry_decision(
+                                session_id=debug_session.session_id,
+                                retry_count=0,
+                                reason="consistency_validation_failed",
+                                quality_score=combined_result.consistency_validation.consistency_score,
+                                threshold=0.7,
+                                decision="proceed_with_warning",
+                                context=inconsistency_warning
+                            )
+
+                        # Store combined result in both artifact and results
+                        artifact.metadata["combined_analysis_result"] = combined_result.model_dump()
+                        step2_results.append(combined_result)
+
+                        # Mark artifact as completed successfully
+                        artifact_manager.complete_artifact(artifact, status="completed")
+
+                        _logger.info(
+                            "step2_analysis_completed_successfully",
+                            url=task.url,
+                            page_id=task.page_id,
+                            overall_quality_score=combined_result.overall_quality_score,
+                            artifact_id=artifact.artifact_id
+                        )
+
+                    except Exception as step2_error:
+                        error_msg = f"Step 2 analysis failed: {str(step2_error)}"
+                        _logger.error(
+                            "step2_analysis_failed_in_orchestration",
+                            url=task.url,
+                            error=str(step2_error),
+                            artifact_id=artifact.artifact_id
+                        )
+                        
+                        # Add error to artifact
+                        artifact_manager.add_error(
+                            artifact=artifact,
+                            error=step2_error,
+                            context={
+                                "phase": "step2_feature_analysis",
+                                "page_url": task.url,
+                                "page_id": task.page_id,
+                                "step1_confidence": step1_summary.confidence_score
+                            }
+                        )
+                        
+                        step2_results.append({
+                            "url": task.url,
+                            "page_id": task.page_id,
+                            "step1_confidence": step1_summary.confidence_score,
+                            "error": error_msg,
+                            "artifact_id": artifact.artifact_id,
+                            "error_phase": "step2"
+                        })
+                        
+                        artifact_manager.complete_artifact(artifact, status="failed")
+
                 else:
+                    # Step 1 confidence too low - store partial result
+                    skip_reason = f"Low confidence ({step1_summary.confidence_score:.2f} < {confidence_threshold})"
+                    
+                    artifact.metadata.update({
+                        "skip_reason": skip_reason,
+                        "step1_confidence": step1_summary.confidence_score,
+                        "confidence_threshold": confidence_threshold,
+                        "processing_end": time.time()
+                    })
+                    
                     step2_results.append({
                         "url": task.url,
                         "page_id": task.page_id,
                         "step1_confidence": step1_summary.confidence_score,
-                        "skipped_reason": f"Low confidence ({step1_summary.confidence_score:.2f} < {confidence_threshold})",
+                        "skipped_reason": skip_reason,
+                        "artifact_id": artifact.artifact_id
                     })
+                    
+                    # Mark artifact as completed but skipped
+                    artifact_manager.complete_artifact(artifact, status="completed")
+                    
+                    _logger.info(
+                        "step2_analysis_skipped_low_confidence",
+                        url=task.url,
+                        confidence_score=step1_summary.confidence_score,
+                        threshold=confidence_threshold,
+                        artifact_id=artifact.artifact_id
+                    )
 
             except Exception as e:
+                error_msg = f"Analysis orchestration failed: {str(e)}"
                 _logger.warning(
-                    "step2_analysis_failed_for_page",
+                    "step2_analysis_orchestration_failed",
                     url=task.url,
                     error=str(e),
+                    artifact_id=artifact.artifact_id if artifact else "none"
                 )
+                
+                # Add error to artifact if available
+                if artifact:
+                    artifact_manager.add_error(
+                        artifact=artifact,
+                        error=e,
+                        context={
+                            "phase": "orchestration",
+                            "page_url": task.url,
+                            "page_id": task.page_id
+                        }
+                    )
+                    artifact_manager.complete_artifact(artifact, status="failed")
+                
                 step2_results.append({
                     "url": task.url,
                     "page_id": task.page_id,
-                    "error": str(e),
+                    "error": error_msg,
+                    "artifact_id": artifact.artifact_id if artifact else None,
+                    "error_phase": "orchestration"
                 })
+                
+            finally:
+                # Close debug session if it was created
+                if debug_session:
+                    debug_inspector.close_session(debug_session.session_id)
+
+        # Calculate final summary with artifact information
+        successful_analyses = [r for r in step2_results if isinstance(r, CombinedAnalysisResult)]
+        failed_analyses = [r for r in step2_results if isinstance(r, dict) and "error" in r]
+        skipped_analyses = [r for r in step2_results if isinstance(r, dict) and "skipped_reason" in r]
+
+        _logger.info(
+            "step2_analysis_batch_completed",
+            total_pages=len(step2_results),
+            successful=len(successful_analyses),
+            failed=len(failed_analyses),
+            skipped=len(skipped_analyses),
+            project_id=self.project_id,
+            workflow_id=self.workflow_id
+        )
 
         return {
             "total_pages_processed": len(step2_results),
-            "successful_analyses": len([r for r in step2_results if "feature_analysis" in r]),
-            "skipped_low_confidence": len([r for r in step2_results if "skipped_reason" in r]),
-            "failed_analyses": len([r for r in step2_results if "error" in r]),
+            "successful_analyses": len(successful_analyses),
+            "skipped_low_confidence": len(skipped_analyses),
+            "failed_analyses": len(failed_analyses),
             "results": step2_results,
+            "artifact_summary": {
+                "artifacts_created": len([r for r in step2_results if isinstance(r, dict) and r.get("artifact_id")]),
+                "debugging_enabled": True,
+                "quality_validation_enabled": True
+            }
         }
 
     async def _synthesize_and_document_results(

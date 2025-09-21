@@ -64,6 +64,11 @@ def create_mcp() -> FastMCP:
     analysis_tools.register(mcp)
     workflow_tools.register(mcp)
     orchestration_tools.register(mcp)  # High-level workflow orchestration
+    
+    # Register debugging tools for Story 3.6
+    from . import debugging_tools
+    debugging_tools.register(mcp)
+    
     return mcp
 
 

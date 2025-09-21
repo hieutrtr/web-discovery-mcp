@@ -33,7 +33,7 @@ class FeatureAnalyzer:
     async def analyze_features(
         self, page_analysis_data: PageAnalysisData, step1_context: ContentSummary
     ) -> FeatureAnalysis:
-        """Performs comprehensive feature analysis for a page.
+        """Performs comprehensive feature analysis for a page with quality validation.
 
         Args:
             page_analysis_data: The comprehensive analysis data collected from the page.
@@ -76,29 +76,58 @@ class FeatureAnalyzer:
                 metadata={"step": "step2", "model_config_key": "step2_model"},
             )
 
-            # Use the LLM engine to get a structured JSON response via chat completion
-            response = await self.llm_engine.chat_completion(
-                request=request, page_url=page_analysis_data.url
+            # Use validation-enabled chat completion for quality assurance
+            response, validation_result, quality_metrics = await self.llm_engine.chat_completion_with_validation(
+                request=request,
+                analysis_type="step2",
+                page_url=page_analysis_data.url,
+                quality_threshold=0.6  # Minimum acceptable quality
             )
 
-            # Parse the JSON response content
+            # Parse the validated JSON response
             analysis_json = self._parse_json_response(response.content)
 
             # Convert JSON to FeatureAnalysis model
             feature_analysis = self._json_to_feature_analysis(analysis_json)
 
-            # Calculate confidence and quality scores
-            feature_analysis.confidence_score = self._calculate_confidence(feature_analysis)
-            feature_analysis.quality_score = self._calculate_quality(
-                feature_analysis, step1_context
+            # Override confidence and quality scores with validated metrics
+            feature_analysis.confidence_score = min(
+                feature_analysis.confidence_score,
+                quality_metrics.llm_confidence_score
+            )
+            feature_analysis.quality_score = quality_metrics.overall_quality_score
+
+            # Store quality metrics and validation results for debugging
+            if hasattr(feature_analysis, 'metadata'):
+                feature_analysis.metadata = feature_analysis.metadata or {}
+            else:
+                feature_analysis.metadata = {}
+                
+            feature_analysis.metadata.update({
+                'quality_metrics': quality_metrics.model_dump(),
+                'validation_result': validation_result.model_dump(),
+                'step1_context_confidence': step1_context.confidence_score
+            })
+
+            # Log comprehensive quality information
+            _logger.info(
+                "feature_analysis_successful",
+                url=page_analysis_data.url,
+                quality_score=quality_metrics.overall_quality_score,
+                completeness_score=quality_metrics.completeness_score,
+                technical_depth_score=quality_metrics.technical_depth_score,
+                needs_manual_review=quality_metrics.needs_manual_review,
+                interactive_elements_count=len(feature_analysis.interactive_elements),
+                functional_capabilities_count=len(feature_analysis.functional_capabilities),
+                validation_errors=len(validation_result.errors),
+                validation_warnings=len(validation_result.warnings)
             )
 
-            _logger.info("Feature analysis successful", url=page_analysis_data.url)
             return feature_analysis
 
         except Exception as e:
             _logger.error(
-                "Feature analysis failed",
+                "feature_analysis_failed",
                 url=page_analysis_data.url,
                 error=str(e),
                 error_type=type(e).__name__,

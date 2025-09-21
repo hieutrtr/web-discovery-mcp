@@ -32,7 +32,7 @@ class ContentSummarizer:
     async def summarize_page(
         self, page_analysis_data: PageAnalysisData
     ) -> ContentSummary:
-        """Performs content summarization analysis for a single page.
+        """Performs content summarization analysis for a single page with quality validation.
 
         Args:
             page_analysis_data: The comprehensive analysis data collected from the page.
@@ -79,22 +79,19 @@ class ContentSummarizer:
                 metadata={"step": "step1", "model_config_key": "step1_model"}
             )
             
-            # Use the LLM engine to get a structured JSON response via chat completion
-            response = await self.llm_engine.chat_completion(
+            # Use validation-enabled chat completion for quality assurance
+            response, validation_result, quality_metrics = await self.llm_engine.chat_completion_with_validation(
                 request=request,
-                page_url=page_analysis_data.url
+                analysis_type="step1",
+                page_url=page_analysis_data.url,
+                quality_threshold=0.6  # Minimum acceptable quality
             )
             
-            # Parse the JSON response content
+            # Parse the validated JSON response
             try:
-                # Try to extract JSON from the response content
                 content = response.content.strip()
                 
-                # Log the raw content for debugging
-                _logger.debug("Raw LLM response content", 
-                            content=content[:200] + "..." if len(content) > 200 else content)
-                
-                # Look for JSON block (handles cases where response might have markdown)
+                # Extract JSON from response (handles markdown formatting)
                 if "```json" in content and "```" in content:
                     json_start = content.find("```json") + 7
                     json_end = content.find("```", json_start)
@@ -113,74 +110,54 @@ class ContentSummarizer:
                         raise ValueError("No valid JSON found in response")
                 
                 summary_json = json.loads(json_str)
-                _logger.debug("Parsed JSON summary", summary_json=summary_json)
                 
-                # Normalize field names from LLM response to match ContentSummary model
-                def normalize_field(json_data: dict[str, Any]) -> dict[str, Any]:
-                    """Normalize field names from various LLM response formats."""
-                    normalized = {}
-                    
-                    # Convert all keys to lowercase for case-insensitive matching
-                    lowercase_data = {k.lower(): v for k, v in json_data.items()}
-                    
-                    # Map common variations in field names - using lowercase versions
-                    field_mappings = {
-                        'purpose': ['purpose', 'primary_purpose', 'primary purpose',
-                                   'main_purpose', 'main purpose'],
-                        'user_context': ['user_context', 'user context', 'target_users',
-                                         'target users', 'user_type', 'user type'],
-                        'business_logic': ['business_logic', 'business logic', 'core_logic',
-                                          'core logic', 'business_rules', 'business rules',
-                                          'functionality'],
-                        'navigation_role': ['navigation_role', 'navigation role', 'site_role',
-                                           'site role', 'page_role', 'page role']
-                    }
-                    
-                    for target_field, possible_sources in field_mappings.items():
-                        for source in possible_sources:
-                            if source in lowercase_data:
-                                normalized[target_field] = lowercase_data[source]
-                                break
-                        else:
-                            # If none of the sources found, use field name directly if present
-                            if target_field in json_data:
-                                normalized[target_field] = json_data[target_field]
-                            elif target_field in lowercase_data:
-                                normalized[target_field] = lowercase_data[target_field]
-                    
-                    # Copy other fields if they exist
-                    if 'confidence_score' in json_data:
-                        normalized['confidence_score'] = json_data['confidence_score']
-                    elif 'confidence_score' in lowercase_data:
-                        normalized['confidence_score'] = lowercase_data['confidence_score']
-                    
-                    return normalized
+                # Validate and create ContentSummary instance
+                content_summary = ContentSummary(**summary_json)
                 
-                # Normalize the JSON response
-                normalized_json = normalize_field(summary_json)
-                summary_json = normalized_json
+                # Override confidence score with quality-adjusted value
+                content_summary.confidence_score = min(
+                    content_summary.confidence_score,
+                    quality_metrics.overall_quality_score
+                )
                 
-                # Ensure confidence_score is present, default to 0.0
-                if "confidence_score" not in summary_json:
-                    summary_json["confidence_score"] = 0.0
+                # Log quality metrics for monitoring
+                _logger.info(
+                    "content_summarization_successful",
+                    url=page_analysis_data.url,
+                    quality_score=quality_metrics.overall_quality_score,
+                    completeness_score=quality_metrics.completeness_score,
+                    needs_manual_review=quality_metrics.needs_manual_review,
+                    validation_errors=len(validation_result.errors),
+                    validation_warnings=len(validation_result.warnings)
+                )
+                
+                # Store quality metrics in metadata for later use
+                if hasattr(content_summary, 'metadata'):
+                    content_summary.metadata = content_summary.metadata or {}
+                else:
+                    content_summary.metadata = {}
+                    
+                content_summary.metadata.update({
+                    'quality_metrics': quality_metrics.model_dump(),
+                    'validation_result': validation_result.model_dump()
+                })
+                
+                return content_summary
+
             except json.JSONDecodeError as e:
-                _logger.warning("Failed to parse JSON response, trying raw content", error=str(e))
-                summary_json = {"purpose": content, "user_context": "", 
-                                "business_logic": "", "navigation_role": content,
-                                "confidence_score": 0.0}
-
-            # Validate and create ContentSummary instance
-            content_summary = ContentSummary(**summary_json)
-
-            # Compute confidence score
-            content_summary.confidence_score = self._calculate_confidence(content_summary)
-
-            _logger.info("Content summarization successful", url=page_analysis_data.url)
-            return content_summary
+                _logger.error(
+                    "content_summary_json_parse_failed",
+                    url=page_analysis_data.url,
+                    error=str(e),
+                    response_content=response.content[:500] if response.content else None
+                )
+                raise ContentSummarizationError(
+                    f"Failed to parse JSON response for {page_analysis_data.url}: {str(e)}"
+                ) from e
 
         except Exception as e:
             _logger.error(
-                "Content summarization failed",
+                "content_summarization_failed",
                 url=page_analysis_data.url,
                 error=str(e),
                 error_type=type(e).__name__,
