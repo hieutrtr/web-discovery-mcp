@@ -1,4 +1,4 @@
-"""Tests for orchestration tools functionality and integration."""
+"Tests for orchestration tools functionality and integration."
 
 import asyncio
 import json
@@ -122,12 +122,16 @@ class TestLegacyAnalysisOrchestrator:
         # Mock discovery service response
         discovery_data = {
             "status": "success",
-            "urls": [
-                "https://example.com/",
-                "https://example.com/login",
-                "https://example.com/dashboard",
-                "https://example.com/about",
-            ],
+            "inventory": {
+                "urls": {
+                    "internal_pages": [
+                        {"url": "https://example.com/"},
+                        {"url": "https://example.com/login"},
+                        {"url": "https://example.com/dashboard"},
+                        {"url": "https://example.com/about"},
+                    ]
+                }
+            },
             "site_info": {"site_type": "webapp"},
             "discovery_method": "sitemap",
         }
@@ -157,7 +161,7 @@ class TestLegacyAnalysisOrchestrator:
         """Test site discovery with no URLs found."""
         discovery_data = {
             "status": "success",
-            "urls": [],
+            "inventory": {"urls": {}},
             "site_info": {},
         }
         orchestrator.discovery_service.discover = AsyncMock(return_value=discovery_data)
@@ -277,52 +281,115 @@ class TestLegacyAnalysisOrchestrator:
             assert result["total_processing_time"] == 120.5
             assert len(result["page_analysis_results"]) == 2
 
-    async def test_execute_step2_analysis_success(self, orchestrator, mock_context):
-        """Test successful Step 2 analysis execution."""
-        # Mock completed page tasks
+
+    async def test_execute_step2_analysis_creates_combined_result(self, orchestrator, mock_context):
+        """Test that _execute_step2_analysis returns a CombinedAnalysisResult object."""
+        # Arrange
+        from legacy_web_mcp.llm.models import ContentSummary, FeatureAnalysis, CombinedAnalysisResult, ContextPayload, ConsistencyValidation
+
         mock_task = MagicMock()
         mock_task.url = "https://example.com/"
         mock_task.page_id = "page-1"
         mock_task.analysis_result = MagicMock()
 
         completed_pages = [mock_task]
-        strategy = {"step2_confidence_threshold": 0.75}
+        strategy = {"step2_confidence_threshold": 0.7}
 
-        # Mock content summarizer
-        mock_step1_summary = MagicMock()
-        mock_step1_summary.confidence_score = 0.8
+        step1_summary = ContentSummary(
+            purpose="Test Purpose",
+            user_context="Test User",
+            business_logic="Test Logic",
+            navigation_role="Test Role",
+            confidence_score=0.8,
+            business_importance=0.9
+        )
+
+        feature_analysis = FeatureAnalysis(
+            confidence_score=0.85,
+            quality_score=0.9,
+            context_validation=ConsistencyValidation(is_consistent=True, consistency_score=1.0)
+        )
+
+        # Mock the sub-methods
         orchestrator.llm_engine = MagicMock()
-
-        # Mock feature analyzer
-        mock_feature_analysis = MagicMock()
-        mock_feature_analysis.interactive_elements = [{"type": "button"}]
-        mock_feature_analysis.functional_capabilities = [{"name": "login"}]
-        mock_feature_analysis.api_integrations = [{"endpoint": "/api/auth"}]
-        mock_feature_analysis.business_rules = [{"rule": "password_required"}]
-        mock_feature_analysis.confidence_score = 0.85
-        mock_feature_analysis.quality_score = 0.9
-
         with patch("legacy_web_mcp.mcp.orchestration_tools.ContentSummarizer") as mock_summarizer_class, \
              patch("legacy_web_mcp.mcp.orchestration_tools.FeatureAnalyzer") as mock_analyzer_class:
 
             mock_summarizer = mock_summarizer_class.return_value
-            mock_summarizer.summarize_page = AsyncMock(return_value=mock_step1_summary)
+            mock_summarizer.summarize_page = AsyncMock(return_value=step1_summary)
 
             mock_analyzer = mock_analyzer_class.return_value
-            mock_analyzer.analyze_features = AsyncMock(return_value=mock_feature_analysis)
+            mock_analyzer.analyze_features_with_context = AsyncMock(return_value=feature_analysis)
 
-            result = await orchestrator._execute_step2_analysis(mock_context, completed_pages, strategy)
+            # Act
+            results = await orchestrator._execute_step2_analysis(mock_context, completed_pages, strategy)
 
-            assert result["total_pages_processed"] == 1
-            assert result["successful_analyses"] == 1
-            assert result["skipped_low_confidence"] == 0
-            assert result["failed_analyses"] == 0
-            assert len(result["results"]) == 1
+            # Assert
+            assert len(results["results"]) == 1
+            combined_result = results["results"][0]
 
-            page_result = result["results"][0]
-            assert page_result["url"] == "https://example.com/"
-            assert page_result["step1_confidence"] == 0.8
-            assert "feature_analysis" in page_result
+            assert isinstance(combined_result, CombinedAnalysisResult)
+            assert combined_result.content_summary == step1_summary
+            assert combined_result.feature_analysis == feature_analysis
+            assert combined_result.overall_quality_score > 0
+            assert combined_result.analysis_completeness > 0
+
+
+    async def test_inconsistency_logging(self, orchestrator, mock_context):
+        """Test that a warning is logged when inconsistencies are found."""
+        # Arrange
+        from legacy_web_mcp.llm.models import ContentSummary, FeatureAnalysis, CombinedAnalysisResult, ContextPayload, ConsistencyValidation
+
+        mock_task = MagicMock()
+        mock_task.url = "https://example.com/"
+        mock_task.page_id = "page-1"
+        mock_task.analysis_result = MagicMock()
+
+        completed_pages = [mock_task]
+        strategy = {"step2_confidence_threshold": 0.7}
+
+        step1_summary = ContentSummary(
+            purpose="Test Purpose",
+            user_context="Test User",
+            business_logic="Test Logic",
+            navigation_role="Test Role",
+            confidence_score=0.8,
+            business_importance=0.9
+        )
+
+        feature_analysis = FeatureAnalysis(
+            confidence_score=0.85,
+            quality_score=0.9,
+            context_validation=ConsistencyValidation(
+                is_consistent=False,
+                inconsistencies=["Test inconsistency"],
+                consistency_score=0.5,
+                action_required=True
+            )
+        )
+
+        # Mock the sub-methods
+        orchestrator.llm_engine = MagicMock()
+        with patch("legacy_web_mcp.mcp.orchestration_tools.ContentSummarizer") as mock_summarizer_class, \
+             patch("legacy_web_mcp.mcp.orchestration_tools.FeatureAnalyzer") as mock_analyzer_class, \
+             patch("legacy_web_mcp.mcp.orchestration_tools._logger") as mock_logger:
+
+            mock_summarizer = mock_summarizer_class.return_value
+            mock_summarizer.summarize_page = AsyncMock(return_value=step1_summary)
+
+            mock_analyzer = mock_analyzer_class.return_value
+            mock_analyzer.analyze_features_with_context = AsyncMock(return_value=feature_analysis)
+
+            # Act
+            await orchestrator._execute_step2_analysis(mock_context, completed_pages, strategy)
+
+            # Assert
+            mock_logger.warning.assert_called_once()
+            call_args, call_kwargs = mock_logger.warning.call_args
+            assert call_args[0] == "Inconsistency found between Step 1 and Step 2 analysis"
+            assert call_kwargs["url"] == "https://example.com/"
+            assert call_kwargs["inconsistencies"] == ["Test inconsistency"]
+
 
     async def test_execute_step2_analysis_low_confidence(self, orchestrator, mock_context):
         """Test Step 2 analysis with low confidence pages."""

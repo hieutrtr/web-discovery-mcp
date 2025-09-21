@@ -10,10 +10,11 @@ import structlog
 
 from legacy_web_mcp.browser.analysis import PageAnalysisData
 from legacy_web_mcp.llm.engine import LLMEngine
-from legacy_web_mcp.llm.models import ContentSummary, FeatureAnalysis
+from legacy_web_mcp.llm.models import ContentSummary, FeatureAnalysis, ContextPayload, PriorityScore, ConsistencyValidation
 from legacy_web_mcp.llm.prompts.step2_feature_analysis import (
     FEATURE_ANALYSIS_SYSTEM_PROMPT,
     create_feature_analysis_prompt,
+    create_context_aware_feature_analysis_prompt,
 )
 
 _logger = structlog.get_logger(__name__)
@@ -338,3 +339,371 @@ class FeatureAnalyzer:
         score *= step1_context.confidence_score
 
         return max(0.1, min(1.0, score))  # Bound between 0.1 and 1.0
+
+    async def analyze_features_with_context(
+        self, page_analysis_data: PageAnalysisData, context_payload: ContextPayload
+    ) -> FeatureAnalysis:
+        """Performs context-aware feature analysis using rich Step 1 context.
+
+        Args:
+            page_analysis_data: The comprehensive analysis data collected from the page.
+            context_payload: Rich context data from Step 1 analysis.
+
+        Returns:
+            A FeatureAnalysis object with context-aware insights and priority scoring.
+
+        Raises:
+            FeatureAnalysisError: If the analysis fails after all retries.
+        """
+        _logger.info("Starting context-aware feature analysis", url=page_analysis_data.url)
+
+        # Extract interactive elements and network requests
+        interactive_elements = self._extract_interactive_elements(page_analysis_data)
+        network_requests = self._extract_network_requests(page_analysis_data)
+
+        # Create context-aware prompt
+        prompt = create_context_aware_feature_analysis_prompt(
+            page_content=page_analysis_data.page_content,
+            context_payload=context_payload,
+            interactive_elements=interactive_elements,
+            network_requests=network_requests,
+            url=page_analysis_data.url,
+        )
+
+        try:
+            from legacy_web_mcp.llm.models import LLMMessage, LLMRequest, LLMRequestType, LLMRole
+
+            messages = [
+                LLMMessage(role=LLMRole.SYSTEM, content=FEATURE_ANALYSIS_SYSTEM_PROMPT),
+                LLMMessage(role=LLMRole.USER, content=prompt),
+            ]
+
+            request = LLMRequest(
+                messages=messages,
+                request_type=LLMRequestType.FEATURE_ANALYSIS,
+            )
+
+            response = await self.llm_engine.chat_completion(
+                request=request,
+                page_url=page_analysis_data.url
+            )
+
+            # Parse the JSON response into FeatureAnalysis
+            feature_analysis = self._parse_json_response(response.content)
+
+            # Enhanced context-aware processing
+            feature_analysis = self._enhance_with_context(feature_analysis, context_payload)
+
+            # Calculate priority scores for features
+            self._calculate_priority_scores(feature_analysis, context_payload)
+
+            # Perform consistency validation
+            feature_analysis.context_validation = self._validate_consistency(
+                feature_analysis, context_payload
+            )
+
+            # Calculate context integration score
+            feature_analysis.context_integration_score = self._calculate_context_integration_score(
+                feature_analysis, context_payload
+            )
+
+            # Calculate confidence and quality scores
+            feature_analysis.confidence_score = self._calculate_confidence(feature_analysis)
+            feature_analysis.quality_score = self._calculate_quality(
+                feature_analysis, context_payload.content_summary
+            )
+
+            _logger.info("Context-aware feature analysis successful", url=page_analysis_data.url)
+            return feature_analysis
+
+        except Exception as e:
+            _logger.error(
+                "Context-aware feature analysis failed",
+                url=page_analysis_data.url,
+                error=str(e),
+                error_type=type(e).__name__,
+            )
+            raise FeatureAnalysisError(
+                f"Failed to analyze features with context for {page_analysis_data.url}: {str(e)}"
+            ) from e
+
+    def _enhance_with_context(
+        self, feature_analysis: FeatureAnalysis, context_payload: ContextPayload
+    ) -> FeatureAnalysis:
+        """Enhance feature analysis with contextual information."""
+        # Add business context relevance to interactive elements
+        for element in feature_analysis.interactive_elements:
+            element.business_context_relevance = self._determine_business_relevance(
+                element, context_payload
+            )
+            element.workflow_role = self._determine_workflow_role(element, context_payload)
+
+        # Add business alignment to functional capabilities
+        for capability in feature_analysis.functional_capabilities:
+            capability.business_alignment = self._determine_business_alignment(
+                capability, context_payload
+            )
+            capability.user_journey_impact = self._determine_user_journey_impact(
+                capability, context_payload
+            )
+
+        # Generate business alignment summary
+        feature_analysis.business_alignment_summary = self._generate_business_alignment_summary(
+            feature_analysis, context_payload
+        )
+
+        # Map workflow dependencies
+        feature_analysis.workflow_dependencies = self._map_workflow_dependencies(
+            feature_analysis, context_payload
+        )
+
+        return feature_analysis
+
+    def _calculate_priority_scores(
+        self, feature_analysis: FeatureAnalysis, context_payload: ContextPayload
+    ) -> None:
+        """Calculate priority scores for features based on business and technical factors."""
+        business_importance = context_payload.content_summary.business_importance
+
+        # Calculate priority scores for interactive elements
+        for element in feature_analysis.interactive_elements:
+            element.priority_score = self._calculate_element_priority(
+                element, business_importance, context_payload
+            )
+
+        # Calculate priority scores for functional capabilities
+        for capability in feature_analysis.functional_capabilities:
+            capability.priority_score = self._calculate_capability_priority(
+                capability, business_importance, context_payload
+            )
+
+    def _validate_consistency(
+        self, feature_analysis: FeatureAnalysis, context_payload: ContextPayload
+    ) -> ConsistencyValidation:
+        """Validate consistency between Step 1 context and Step 2 findings."""
+        inconsistencies = []
+
+        # Check if features align with business purpose
+        purpose_alignment = self._check_purpose_alignment(feature_analysis, context_payload)
+        if not purpose_alignment['aligned']:
+            inconsistencies.extend(purpose_alignment['issues'])
+
+        # Check if features support identified workflows
+        workflow_support = self._check_workflow_support(feature_analysis, context_payload)
+        if not workflow_support['supported']:
+            inconsistencies.extend(workflow_support['issues'])
+
+        # Check user context consistency
+        user_context_consistency = self._check_user_context_consistency(feature_analysis, context_payload)
+        if not user_context_consistency['consistent']:
+            inconsistencies.extend(user_context_consistency['issues'])
+
+        # Calculate consistency score
+        total_checks = 3
+        passed_checks = sum([
+            purpose_alignment['aligned'],
+            workflow_support['supported'],
+            user_context_consistency['consistent']
+        ])
+        consistency_score = passed_checks / total_checks
+
+        return ConsistencyValidation(
+            is_consistent=len(inconsistencies) == 0,
+            inconsistencies=inconsistencies,
+            consistency_score=consistency_score,
+            action_required=consistency_score < 0.7,
+            validation_details={
+                'purpose_alignment': purpose_alignment,
+                'workflow_support': workflow_support,
+                'user_context_consistency': user_context_consistency
+            }
+        )
+
+    def _calculate_context_integration_score(
+        self, feature_analysis: FeatureAnalysis, context_payload: ContextPayload
+    ) -> float:
+        """Calculate how well Step 1 context was integrated into Step 2 analysis."""
+        integration_factors = []
+
+        # Check if business context is reflected in features
+        if feature_analysis.business_alignment_summary:
+            integration_factors.append(1.0)
+        else:
+            integration_factors.append(0.0)
+
+        # Check if workflow dependencies are mapped
+        if feature_analysis.workflow_dependencies:
+            integration_factors.append(1.0)
+        else:
+            integration_factors.append(0.5)
+
+        # Check if elements have context relevance
+        elements_with_context = sum(
+            1 for el in feature_analysis.interactive_elements
+            if el.business_context_relevance
+        )
+        if feature_analysis.interactive_elements:
+            element_context_ratio = elements_with_context / len(feature_analysis.interactive_elements)
+            integration_factors.append(element_context_ratio)
+        else:
+            integration_factors.append(0.5)
+
+        # Check if capabilities have business alignment
+        capabilities_with_alignment = sum(
+            1 for cap in feature_analysis.functional_capabilities
+            if cap.business_alignment
+        )
+        if feature_analysis.functional_capabilities:
+            capability_alignment_ratio = capabilities_with_alignment / len(feature_analysis.functional_capabilities)
+            integration_factors.append(capability_alignment_ratio)
+        else:
+            integration_factors.append(0.5)
+
+        return sum(integration_factors) / len(integration_factors)
+
+    # Helper methods for context analysis
+    def _determine_business_relevance(self, element, context_payload: ContextPayload) -> str:
+        """Determine how an element relates to business context."""
+        keywords = context_payload.get_contextual_keywords()
+        purpose = context_payload.content_summary.purpose.lower()
+
+        # Simple keyword matching for business relevance
+        element_purpose = element.purpose.lower()
+
+        for keyword in keywords:
+            if keyword.lower() in element_purpose:
+                return f"Related to {keyword} as part of {purpose}"
+
+        return f"Supports general {purpose} functionality"
+
+    def _determine_workflow_role(self, element, context_payload: ContextPayload) -> str:
+        """Determine an element's role in identified workflows."""
+        workflows = context_payload.content_summary.key_workflows
+        journey_stage = context_payload.content_summary.user_journey_stage
+
+        # Map element types to likely workflow roles
+        if element.type in ['form', 'input']:
+            return f"Data collection for {', '.join(workflows)} at {journey_stage} stage"
+        elif element.type == 'button':
+            return f"Action trigger for {', '.join(workflows)}"
+        else:
+            return f"Interface element supporting {journey_stage} stage workflows"
+
+    def _determine_business_alignment(self, capability, context_payload: ContextPayload) -> str:
+        """Determine how a capability aligns with business purpose."""
+        purpose = context_payload.content_summary.purpose
+        business_logic = context_payload.content_summary.business_logic
+
+        return f"Enables {capability.name} to support {purpose}: {business_logic}"
+
+    def _determine_user_journey_impact(self, capability, context_payload: ContextPayload) -> str:
+        """Determine a capability's impact on user journey."""
+        journey_stage = context_payload.content_summary.user_journey_stage
+        user_context = context_payload.content_summary.user_context
+
+        return f"Impacts {user_context} experience during {journey_stage} stage"
+
+    def _generate_business_alignment_summary(self, feature_analysis: FeatureAnalysis, context_payload: ContextPayload) -> str:
+        """Generate summary of how features align with business context."""
+        purpose = context_payload.content_summary.purpose
+        workflows = context_payload.content_summary.key_workflows
+
+        return f"Features support {purpose} through {len(feature_analysis.interactive_elements)} interactive elements and {len(feature_analysis.functional_capabilities)} capabilities, enabling {', '.join(workflows)} workflows."
+
+    def _map_workflow_dependencies(self, feature_analysis: FeatureAnalysis, context_payload: ContextPayload) -> dict:
+        """Map workflow dependencies between features."""
+        workflows = context_payload.content_summary.key_workflows
+
+        return {
+            workflow: [cap.name for cap in feature_analysis.functional_capabilities]
+            for workflow in workflows
+        }
+
+    def _check_purpose_alignment(self, feature_analysis: FeatureAnalysis, context_payload: ContextPayload) -> dict:
+        """Check if features align with stated purpose."""
+        # Simplified alignment check - in production, this would be more sophisticated
+        has_relevant_features = len(feature_analysis.interactive_elements) > 0 or len(feature_analysis.functional_capabilities) > 0
+
+        return {
+            'aligned': has_relevant_features,
+            'issues': [] if has_relevant_features else ['No relevant features found for stated purpose']
+        }
+
+    def _check_workflow_support(self, feature_analysis: FeatureAnalysis, context_payload: ContextPayload) -> dict:
+        """Check if features support identified workflows."""
+        workflows = context_payload.content_summary.key_workflows
+        supported_workflows = len(workflows) > 0 and len(feature_analysis.functional_capabilities) > 0
+
+        return {
+            'supported': supported_workflows,
+            'issues': [] if supported_workflows else ['Features do not clearly support identified workflows']
+        }
+
+    def _check_user_context_consistency(self, feature_analysis: FeatureAnalysis, context_payload: ContextPayload) -> dict:
+        """Check if features are consistent with user context."""
+        # Simplified consistency check
+        user_context = context_payload.content_summary.user_context
+        has_user_appropriate_features = len(feature_analysis.interactive_elements) > 0
+
+        return {
+            'consistent': has_user_appropriate_features,
+            'issues': [] if has_user_appropriate_features else [f'Features may not be appropriate for {user_context}']
+        }
+
+    def _calculate_element_priority(
+        self, element, business_importance: float, context_payload: ContextPayload
+    ) -> PriorityScore:
+        """Calculate priority score for an interactive element."""
+        # Determine technical complexity based on element type
+        complexity_map = {
+            "form": 0.7,
+            "button": 0.3,
+            "input": 0.4,
+            "select": 0.5,
+            "textarea": 0.4,
+        }
+        technical_complexity = complexity_map.get(element.type, 0.5)
+
+        # Determine user impact based on workflow role
+        user_impact = 0.8 if element.workflow_role else 0.5
+
+        # Determine implementation effort
+        implementation_effort = technical_complexity * 0.8
+
+        priority_score = PriorityScore(
+            business_importance=business_importance,
+            technical_complexity=technical_complexity,
+            user_impact=user_impact,
+            implementation_effort=implementation_effort
+        )
+
+        priority_score.calculate_priority()
+        return priority_score
+
+    def _calculate_capability_priority(
+        self, capability, business_importance: float, context_payload: ContextPayload
+    ) -> PriorityScore:
+        """Calculate priority score for a functional capability."""
+        # Use existing complexity score if available
+        technical_complexity = capability.complexity_score or 0.5
+
+        # Determine user impact based on business alignment
+        user_impact = 0.9 if capability.business_alignment else 0.6
+
+        # Estimate implementation effort based on complexity and type
+        effort_map = {
+            "feature": 0.6,
+            "service": 0.8,
+            "integration": 0.9,
+        }
+        implementation_effort = effort_map.get(capability.type, 0.7)
+
+        priority_score = PriorityScore(
+            business_importance=business_importance,
+            technical_complexity=technical_complexity,
+            user_impact=user_impact,
+            implementation_effort=implementation_effort
+        )
+
+        priority_score.calculate_priority()
+        return priority_score

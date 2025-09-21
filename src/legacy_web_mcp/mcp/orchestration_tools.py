@@ -27,7 +27,7 @@ from fastmcp import Context, FastMCP
 from legacy_web_mcp.browser.service import BrowserAutomationService
 from legacy_web_mcp.browser.workflow import SequentialNavigationWorkflow
 from legacy_web_mcp.config.loader import load_configuration
-from legacy_web_mcp.llm.models import LLMMessage, LLMRequest, LLMRequestType, LLMRole
+from legacy_web_mcp.llm.models import (CombinedAnalysisResult, ContextPayload, LLMMessage, LLMRequest, LLMRequestType, LLMRole)
 from legacy_web_mcp.discovery.pipeline import WebsiteDiscoveryService
 from legacy_web_mcp.llm.analysis.step1_summarize import ContentSummarizer
 from legacy_web_mcp.llm.analysis.step2_feature_analysis import FeatureAnalyzer
@@ -597,11 +597,7 @@ class LegacyAnalysisOrchestrator:
                 for url_record in url_groups.get(category, []):
                     if isinstance(url_record, dict) and "url" in url_record:
                         all_urls.append(url_record["url"])
-            site_info = {
-                "domain": discovery_data.get("domain", ""),
-                "summary": discovery_data.get("summary", {}),
-                "sources": discovery_data.get("sources", {})
-            }
+            site_info = discovery_data.get("site_info", {})
 
             if not all_urls:
                 raise WorkflowPlanningError(f"No URLs discovered for {url}")
@@ -884,24 +880,34 @@ class LegacyAnalysisOrchestrator:
 
                 # Only proceed with Step 2 if confidence is sufficient
                 if step1_summary.confidence_score >= confidence_threshold:
-                    feature_analysis = await feature_analyzer.analyze_features(
+                    # Create context payload for Step 2
+                    context_payload = ContextPayload(content_summary=step1_summary)
+
+                    # Use context-aware feature analysis
+                    feature_analysis = await feature_analyzer.analyze_features_with_context(
                         page_analysis_data=task.analysis_result,
-                        step1_context=step1_summary
+                        context_payload=context_payload,
                     )
 
-                    step2_results.append({
-                        "url": task.url,
-                        "page_id": task.page_id,
-                        "step1_confidence": step1_summary.confidence_score,
-                        "feature_analysis": {
-                            "interactive_elements": len(feature_analysis.interactive_elements),
-                            "functional_capabilities": len(feature_analysis.functional_capabilities),
-                            "api_integrations": len(feature_analysis.api_integrations),
-                            "business_rules": len(feature_analysis.business_rules),
-                            "confidence_score": feature_analysis.confidence_score,
-                            "quality_score": feature_analysis.quality_score,
-                        },
-                    })
+                    # Create and append the combined analysis result
+                    combined_result = CombinedAnalysisResult(
+                        content_summary=step1_summary,
+                        feature_analysis=feature_analysis,
+                        context_payload=context_payload,
+                        consistency_validation=feature_analysis.context_validation,
+                    )
+                    combined_result.calculate_overall_metrics()
+
+                    # Log a warning if inconsistencies are found
+                    if combined_result.consistency_validation and combined_result.consistency_validation.action_required:
+                        _logger.warning(
+                            "Inconsistency found between Step 1 and Step 2 analysis",
+                            url=task.url,
+                            page_id=task.page_id,
+                            inconsistencies=combined_result.consistency_validation.inconsistencies,
+                        )
+
+                    step2_results.append(combined_result)
                 else:
                     step2_results.append({
                         "url": task.url,

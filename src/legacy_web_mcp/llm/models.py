@@ -219,23 +219,163 @@ class ContentSummary(BaseModel):
         le=1.0
     )
 
+    # Enhanced context data for Step 2 passing
+    key_workflows: list[str] = Field(
+        default_factory=list,
+        description="Key business workflows this page supports"
+    )
+    user_journey_stage: str = Field(
+        default="",
+        description="Stage in user journey (entry, middle, exit, conversion, etc.)"
+    )
+    content_hierarchy: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Content organization and hierarchy analysis"
+    )
+    business_importance: float = Field(
+        default=0.5,
+        description="Business importance score (0.0-1.0)",
+        ge=0.0,
+        le=1.0
+    )
+    entry_exit_points: dict[str, list[str]] = Field(
+        default_factory=dict,
+        description="Entry and exit points identified on the page"
+    )
+    contextual_keywords: list[str] = Field(
+        default_factory=list,
+        description="Key terms and concepts that define page context"
+    )
+
+
+class ContextPayload(BaseModel):
+    """Context data structure passed from Step 1 to Step 2 analysis."""
+
+    content_summary: ContentSummary = Field(description="Complete Step 1 analysis results")
+    filtered_context: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Filtered context data relevant for Step 2"
+    )
+    analysis_metadata: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Metadata about the analysis process"
+    )
+
+    def get_business_context(self) -> str:
+        """Extract business context for Step 2 prompts."""
+        return f"""
+Business Purpose: {self.content_summary.purpose}
+Target Users: {self.content_summary.user_context}
+Key Workflows: {', '.join(self.content_summary.key_workflows)}
+Journey Stage: {self.content_summary.user_journey_stage}
+Business Importance: {self.content_summary.business_importance:.2f}
+Navigation Role: {self.content_summary.navigation_role}
+"""
+
+    def get_contextual_keywords(self) -> list[str]:
+        """Get contextual keywords for enhanced analysis."""
+        return self.content_summary.contextual_keywords
+
+    def get_workflow_dependencies(self) -> dict[str, Any]:
+        """Extract workflow dependency information."""
+        return {
+            "workflows": self.content_summary.key_workflows,
+            "entry_points": self.content_summary.entry_exit_points.get("entry", []),
+            "exit_points": self.content_summary.entry_exit_points.get("exit", []),
+            "journey_stage": self.content_summary.user_journey_stage
+        }
+
+
+class PriorityScore(BaseModel):
+    """Priority scoring combining business importance and technical complexity."""
+
+    business_importance: float = Field(description="Business importance (0.0-1.0)", ge=0.0, le=1.0)
+    technical_complexity: float = Field(description="Technical complexity (0.0-1.0)", ge=0.0, le=1.0)
+    user_impact: float = Field(description="User experience impact (0.0-1.0)", ge=0.0, le=1.0)
+    implementation_effort: float = Field(description="Implementation effort (0.0-1.0)", ge=0.0, le=1.0)
+    overall_priority: float = Field(default=0.0, description="Calculated overall priority (0.0-1.0)", ge=0.0, le=1.0)
+
+    def calculate_priority(self) -> float:
+        """Calculate overall priority score using weighted algorithm."""
+        # Weighted algorithm: business importance (40%), user impact (30%),
+        # complexity penalty (20%), effort penalty (10%)
+        score = (
+            self.business_importance * 0.4 +
+            self.user_impact * 0.3 +
+            (1.0 - self.technical_complexity) * 0.2 +  # Lower complexity = higher priority
+            (1.0 - self.implementation_effort) * 0.1   # Lower effort = higher priority
+        )
+        self.overall_priority = max(0.0, min(1.0, score))
+        return self.overall_priority
+
+
+class ConsistencyValidation(BaseModel):
+    """Validation results for consistency between Step 1 and Step 2."""
+
+    is_consistent: bool = Field(description="Whether analysis steps are consistent")
+    inconsistencies: list[str] = Field(
+        default_factory=list,
+        description="List of identified inconsistencies"
+    )
+    consistency_score: float = Field(
+        description="Overall consistency score (0.0-1.0)",
+        ge=0.0,
+        le=1.0
+    )
+    validation_details: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Detailed validation results"
+    )
+    action_required: bool = Field(
+        default=False,
+        description="Whether manual review is required"
+    )
+
 
 class InteractiveElement(BaseModel):
     """Interactive element found on a page."""
-    
+
     type: str = Field(description="Element type (button, form, input, etc.)")
     selector: str = Field(description="CSS selector or element identifier")
     purpose: str = Field(description="What the element does")
     behavior: str = Field(description="How the element behaves (click, submit, etc.)")
 
+    # Context-aware enhancements
+    business_context_relevance: str = Field(
+        default="",
+        description="How this element relates to business context from Step 1"
+    )
+    workflow_role: str = Field(
+        default="",
+        description="Role in identified workflows"
+    )
+    priority_score: PriorityScore | None = Field(
+        default=None,
+        description="Priority scoring based on business and technical factors"
+    )
+
 
 class FunctionalCapability(BaseModel):
     """Functional capability identified on a page."""
-    
+
     name: str = Field(description="Capability name")
     description: str = Field(description="What the capability does")
     type: str = Field(description="Type of capability (feature, service, etc.)")
     complexity_score: float | None = Field(None, description="Complexity rating 0.0-1.0")
+
+    # Context-aware enhancements
+    business_alignment: str = Field(
+        default="",
+        description="How this capability aligns with business purpose"
+    )
+    user_journey_impact: str = Field(
+        default="",
+        description="Impact on user journey from Step 1 context"
+    )
+    priority_score: PriorityScore | None = Field(
+        default=None,
+        description="Priority scoring based on business and technical factors"
+    )
 
 
 class APIIntegration(BaseModel):
@@ -278,7 +418,7 @@ class RebuildSpecification(BaseModel):
 
 class FeatureAnalysis(BaseModel):
     """Step 2 LLM analysis output with detailed feature breakdown."""
-    
+
     interactive_elements: list[InteractiveElement] = Field(default_factory=list)
     functional_capabilities: list[FunctionalCapability] = Field(default_factory=list)
     api_integrations: list[APIIntegration] = Field(default_factory=list)
@@ -298,6 +438,156 @@ class FeatureAnalysis(BaseModel):
         le=1.0
     )
 
+    # Context-aware enhancements
+    context_integration_score: float = Field(
+        default=0.0,
+        description="How well Step 1 context was integrated (0.0-1.0)",
+        ge=0.0,
+        le=1.0
+    )
+    workflow_dependencies: dict[str, list[str]] = Field(
+        default_factory=dict,
+        description="Identified workflow dependencies between features"
+    )
+    business_alignment_summary: str = Field(
+        default="",
+        description="Summary of how features align with business context"
+    )
+    context_validation: ConsistencyValidation | None = Field(
+        default=None,
+        description="Validation results against Step 1 context"
+    )
+
+
+class CombinedAnalysisResult(BaseModel):
+    """Combined analysis result merging Step 1 and Step 2 with context passing."""
+
+    content_summary: ContentSummary = Field(description="Step 1 analysis results")
+    feature_analysis: FeatureAnalysis = Field(description="Step 2 analysis results")
+    context_payload: ContextPayload = Field(description="Context data used for integration")
+
+    # Analysis quality metrics
+    overall_quality_score: float = Field(
+        default=0.0,
+        description="Combined quality score from both steps (0.0-1.0)",
+        ge=0.0,
+        le=1.0
+    )
+    analysis_completeness: float = Field(
+        default=0.0,
+        description="Completeness of the analysis (0.0-1.0)",
+        ge=0.0,
+        le=1.0
+    )
+
+    # Integration metrics
+    context_utilization_score: float = Field(
+        default=0.0,
+        description="How effectively context was utilized (0.0-1.0)",
+        ge=0.0,
+        le=1.0
+    )
+    cross_reference_score: float = Field(
+        default=0.0,
+        description="Quality of cross-referencing between steps (0.0-1.0)",
+        ge=0.0,
+        le=1.0
+    )
+
+    # Priority and workflow insights
+    prioritized_features: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description="Features prioritized by business importance and complexity"
+    )
+    workflow_insights: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Insights about workflow dependencies and user journeys"
+    )
+
+    # Validation and consistency
+    consistency_validation: ConsistencyValidation = Field(
+        default_factory=lambda: ConsistencyValidation(
+            is_consistent=True,
+            consistency_score=1.0
+        ),
+        description="Overall consistency validation between steps"
+    )
+
+    # Documentation and export data
+    documentation_ready: bool = Field(
+        default=False,
+        description="Whether the analysis is ready for documentation generation"
+    )
+    export_metadata: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Metadata for documentation and export pipelines"
+    )
+
+    def calculate_overall_metrics(self) -> None:
+        """Calculate overall quality and completeness metrics."""
+        # Overall quality is weighted average of step scores
+        step1_weight = 0.3
+        step2_weight = 0.5
+        context_weight = 0.2
+
+        self.overall_quality_score = (
+            self.content_summary.confidence_score * step1_weight +
+            self.feature_analysis.quality_score * step2_weight +
+            self.feature_analysis.context_integration_score * context_weight
+        )
+
+        # Completeness based on data richness
+        step1_completeness = self._calculate_step1_completeness()
+        step2_completeness = self._calculate_step2_completeness()
+
+        self.analysis_completeness = (step1_completeness + step2_completeness) / 2
+
+        # Context utilization
+        self.context_utilization_score = self.feature_analysis.context_integration_score
+
+        # Cross-reference quality
+        self.cross_reference_score = self.consistency_validation.consistency_score
+
+    def _calculate_step1_completeness(self) -> float:
+        """Calculate Step 1 analysis completeness."""
+        required_fields = [
+            self.content_summary.purpose,
+            self.content_summary.user_context,
+            self.content_summary.business_logic,
+            self.content_summary.navigation_role
+        ]
+
+        optional_fields = [
+            self.content_summary.key_workflows,
+            self.content_summary.user_journey_stage,
+            self.content_summary.contextual_keywords
+        ]
+
+        required_score = sum(1 for field in required_fields if field and field.strip()) / len(required_fields)
+        optional_score = sum(1 for field in optional_fields if field) / len(optional_fields)
+
+        return (required_score * 0.8) + (optional_score * 0.2)
+
+    def _calculate_step2_completeness(self) -> float:
+        """Calculate Step 2 analysis completeness."""
+        feature_counts = [
+            len(self.feature_analysis.interactive_elements),
+            len(self.feature_analysis.functional_capabilities),
+            len(self.feature_analysis.business_rules),
+            len(self.feature_analysis.rebuild_specifications)
+        ]
+
+        # Score based on having features identified
+        has_features = sum(1 for count in feature_counts if count > 0) / len(feature_counts)
+
+        # Quality scores
+        quality_score = (
+            self.feature_analysis.confidence_score +
+            self.feature_analysis.quality_score
+        ) / 2
+
+        return (has_features * 0.6) + (quality_score * 0.4)
+
 
 __all__ = [
     # Enums
@@ -314,13 +604,17 @@ __all__ = [
     "ProviderConfig",
     "CostTracking",
     "ContentSummary",
+    "ContextPayload",
+    "PriorityScore",
+    "ConsistencyValidation",
     "InteractiveElement",
-    "FunctionalCapability", 
+    "FunctionalCapability",
     "APIIntegration",
     "BusinessRule",
     "ThirdPartyIntegration",
     "RebuildSpecification",
     "FeatureAnalysis",
+    "CombinedAnalysisResult",
     # Exceptions
     "LLMError",
     "AuthenticationError",

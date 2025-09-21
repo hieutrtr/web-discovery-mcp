@@ -493,3 +493,50 @@ class TestFeatureAnalyzer:
         # Should succeed on first attempt
         assert isinstance(result, FeatureAnalysis)
         assert mock_llm_engine.chat_completion.call_count == 1
+
+    async def test_business_importance_complexity_blending(self, analyzer):
+        """Test priority score calculation blending business importance and complexity."""
+        # Arrange
+        from legacy_web_mcp.llm.models import FunctionalCapability, ContextPayload
+
+        # Create a feature analysis object with a capability having a complexity score
+        feature_analysis = FeatureAnalysis(
+            functional_capabilities=[
+                FunctionalCapability(
+                    name="Test Capability",
+                    description="A test case",
+                    type="feature",
+                    complexity_score=0.6,
+                )
+            ]
+        )
+
+        # Create a content summary with a high business importance
+        content_summary = ContentSummary(
+            purpose="Test",
+            user_context="Test",
+            business_logic="Test",
+            navigation_role="Test",
+            confidence_score=0.9,
+            business_importance=0.9, # High importance
+        )
+
+        # Create the context payload
+        context_payload = ContextPayload(content_summary=content_summary)
+
+        # Act
+        analyzer._calculate_priority_scores(feature_analysis, context_payload)
+
+        # Assert
+        capability = feature_analysis.functional_capabilities[0]
+        assert capability.priority_score is not None
+
+        # Manually calculate expected score to verify the logic
+        # score = (business_importance * 0.4 + user_impact * 0.3 + (1 - complexity) * 0.2 + (1 - effort) * 0.1)
+        # From _calculate_capability_priority: user_impact=0.6 (since business_alignment is empty), implementation_effort=0.6
+        expected_score = (0.9 * 0.4) + (0.6 * 0.3) + ((1.0 - 0.6) * 0.2) + ((1.0 - 0.6) * 0.1)
+        # 0.36 + 0.18 + (0.4 * 0.2) + (0.4 * 0.1) = 0.54 + 0.08 + 0.04 = 0.66
+
+        assert capability.priority_score.overall_priority == pytest.approx(0.66)
+        assert capability.priority_score.business_importance == 0.9
+        assert capability.priority_score.technical_complexity == 0.6
