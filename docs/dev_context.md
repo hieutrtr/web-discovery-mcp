@@ -350,11 +350,10 @@ User Experience Modes:
 
 ## Next Development Priorities
 
-1. **Story 3.5** (Context Passing): Enhance analysis quality through better context flow
-2. **Story 3.6** (Quality/Error Handling): Production-ready reliability and debugging
-3. **Epic 4** (Progress Tracking): Real-time monitoring and checkpointing
-4. **Epic 5** (User Experience): Interactive and automated analysis modes
+1. **Story 3.6** (Quality/Error Handling): Production-ready reliability and debugging
+2. **Epic 4** (Progress Tracking): Real-time monitoring and checkpointing
+3. **Epic 5** (User Experience): Interactive and automated analysis modes
 
 ---
 
-**Key for Developers**: This document should be updated as new stories are implemented. Each major architectural change should be reflected here to maintain accurate development context.
+**Key for Developers**: This document should be updated as new stories are implemented. Each major architectural change should be reflected here to maintain accurate development context.major architectural change should be reflected here to maintain accurate development context.ntext.
