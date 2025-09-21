@@ -389,7 +389,8 @@ class FeatureAnalyzer:
             )
 
             # Parse the JSON response into FeatureAnalysis
-            feature_analysis = self._parse_json_response(response.content)
+            analysis_json = self._parse_json_response(response.content)
+            feature_analysis = self._json_to_feature_analysis(analysis_json)
 
             # Enhanced context-aware processing
             feature_analysis = self._enhance_with_context(feature_analysis, context_payload)

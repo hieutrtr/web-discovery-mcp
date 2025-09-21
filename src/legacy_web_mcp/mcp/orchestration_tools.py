@@ -960,12 +960,12 @@ class LegacyAnalysisOrchestrator:
                     "feature_analysis_coverage": f"{step2_data['successful_analyses']}/{pages_analyzed}",
                     "average_feature_complexity": "medium",  # Could calculate from actual data
                     "api_integrations_found": sum(
-                        r.get("feature_analysis", {}).get("api_integrations", 0)
-                        for r in step2_data.get("results", [])
+                        len(r.feature_analysis.api_integrations)
+                        for r in step2_data.get("results", []) if hasattr(r, 'feature_analysis')
                     ),
                     "interactive_elements_total": sum(
-                        r.get("feature_analysis", {}).get("interactive_elements", 0)
-                        for r in step2_data.get("results", [])
+                        len(r.feature_analysis.interactive_elements)
+                        for r in step2_data.get("results", []) if hasattr(r, 'feature_analysis')
                     ),
                 }
             else:
