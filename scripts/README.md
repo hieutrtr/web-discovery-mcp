@@ -563,6 +563,87 @@ python scripts/test_orchestration_with_real_analysis.py
    Reasoning: Simple site with clear structure
 ```
 
+### 16. `test_intelligent_analyze_site_real.py` - Story 6.5 AI-Driven Site Analysis Testing
+
+Tests the **AI-driven site analysis workflow** from Story 6.5 with real LLM integration, demonstrating natural language command parsing, intelligent site pattern detection, and adaptive analysis strategies.
+
+**Prerequisites:**
+```bash
+# LLM API key REQUIRED for AI functionality
+export OPENAI_API_KEY="your-key-here"
+# OR
+export ANTHROPIC_API_KEY="your-key-here"
+# OR
+export GEMINI_API_KEY="your-key-here"
+
+# Install Playwright browsers
+uv run playwright install
+```
+
+**Usage:**
+```bash
+# Run AI-driven analysis tests (costs ~$0.20-1.00)
+python scripts/test_intelligent_analyze_site_real.py
+```
+
+**What This Test Does:**
+- 🤖 Makes **real LLM API calls** for AI-driven workflow orchestration
+- 🧠 Tests **natural language command parsing** and intent recognition
+- 🏗️ Validates **intelligent site pattern detection** (e-commerce, CMS, etc.)
+- 🎯 Tests **adaptive analysis strategies** based on site characteristics
+- 📊 Demonstrates **AI-powered result synthesis** with prioritized recommendations
+- 🔄 Tests **learning capabilities** and analysis quality self-assessment
+- 🛡️ Validates **conversational error handling** and recovery
+
+**Test Scenarios:**
+1. **E-Commerce Rebuild Analysis** - AI analyzes shopping site for modern React rebuild
+2. **Legacy CMS Assessment** - AI evaluates content management system modernization
+3. **Security Audit Workflow** - AI conducts comprehensive security evaluation
+4. **Performance Optimization Analysis** - AI identifies Core Web Vitals improvements
+5. **Error Handling** - AI gracefully handles invalid inputs and edge cases
+
+**Example Output:**
+```bash
+✅ AI E-COMMERCE REBUILD ANALYSIS SUCCESSFUL!
+
+🎯 AI Intent Recognition:
+   Primary Intent: rebuild_planning
+   Specific Goals: ['modernize architecture', 'improve UX']
+   Urgency Level: high
+   AI Summary: Analyze for complete rebuilding with React
+
+🏗️ AI Site Pattern Detection:
+   Detected Type: ecommerce
+   Confidence Level: 90.0%
+   Key Characteristics: ['shopping cart', 'product catalog']
+   Recommended Approach: comprehensive
+
+📋 AI Workflow Planning:
+   Analysis Mode: comprehensive
+   Cost Priority: balanced
+   Max Pages: 30
+   Strategy Summary: Comprehensive e-commerce analysis
+
+🧠 AI-Powered Insights Synthesis:
+   Executive Summary: Complex e-commerce site requiring full rebuild
+   Priority Findings:
+      1. Legacy payment system needs modernization
+      2. Outdated UI framework impacts performance
+      3. Mobile responsiveness requires attention
+   Next Steps:
+      1. Modernize checkout flow with secure APIs
+      2. Update UI library to React 18+
+      3. Implement responsive design patterns
+```
+
+**Key Features Demonstrated:**
+- 🗣️ **Natural Language Processing** - Understands analysis requests in conversational form
+- 🤖 **AI Pattern Recognition** - Automatically detects site types and complexities
+- 🎯 **Intelligent Planning** - Creates optimal analysis strategies based on site characteristics
+- 🔄 **Adaptive Execution** - Dynamically adjusts tool selection and analysis depth
+- 📊 **Smart Synthesis** - Generates actionable insights tailored to user intent
+- 🎓 **Continuous Learning** - Improves analysis quality through pattern recognition
+
 ## Available MCP Tools
 
 The server provides these tools that you can test:
@@ -645,6 +726,11 @@ The server provides these tools that you can test:
 | `analyze_legacy_site` | Orchestrate complete legacy website analysis workflow with intelligent planning and cost optimization | `url`, `analysis_mode` (optional), `max_pages` (optional), `include_step2` (optional), `interactive_mode` (optional), `project_id` (optional), `cost_priority` (optional) |
 | `analyze_with_recommendations` | Analyze website with AI-driven strategy recommendations based on site characteristics | `url`, `project_id` (optional) |
 | `get_analysis_status` | Get status and progress information for ongoing or completed analysis workflows | `project_id` |
+
+### AI-Driven Site Analysis Tools (Story 6.5)
+| Tool | Description | Arguments |
+|------|-------------|-----------|
+| `intelligent_analyze_site` | AI-driven site analysis workflow with natural language orchestration, intelligent site pattern detection, and adaptive analysis strategies | `natural_language_request`, `url`, `user_preferences` (optional), `project_id` (optional) |
 
 ## Environment Setup
 

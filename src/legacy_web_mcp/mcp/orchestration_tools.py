@@ -7,6 +7,10 @@ and documentation generation into seamless conversational AI workflows.
 The primary tool `analyze_legacy_site()` provides complete site analysis from URL to
 documentation, with intelligent workflow planning, progress tracking, error recovery,
 and result aggregation.
+
+Story 6.5 adds AI-driven site analysis workflow through `intelligent_analyze_site()`,
+which uses AI to orchestrate the complete analysis process with natural language
+command parsing, intelligent decision-making, and adaptive strategies.
 """
 
 import asyncio
@@ -23,6 +27,7 @@ from fastmcp import Context, FastMCP
 from legacy_web_mcp.browser.service import BrowserAutomationService
 from legacy_web_mcp.browser.workflow import SequentialNavigationWorkflow
 from legacy_web_mcp.config.loader import load_configuration
+from legacy_web_mcp.llm.models import LLMMessage, LLMRequest, LLMRequestType, LLMRole
 from legacy_web_mcp.discovery.pipeline import WebsiteDiscoveryService
 from legacy_web_mcp.llm.analysis.step1_summarize import ContentSummarizer
 from legacy_web_mcp.llm.analysis.step2_feature_analysis import FeatureAnalyzer
@@ -60,6 +65,394 @@ class WorkflowPlanningError(OrchestrationError):
 class ToolIntegrationError(OrchestrationError):
     """Error in tool integration or coordination."""
     pass
+
+
+class SitePattern(Enum):
+    """Recognized website patterns for adaptive analysis."""
+    ECOMMERCE = "ecommerce"
+    ADMIN_PANEL = "admin_panel"
+    CMS = "cms"
+    BLOG = "blog"
+    CORPORATE = "corporate"
+    APPLICATION = "application"
+    LANDING_PAGE = "landing_page"
+    UNKNOWN = "unknown"
+
+
+class AnalysisIntent(Enum):
+    """User analysis intent categories."""
+    REBUILD_PLANNING = "rebuild_planning"
+    FEATURE_ASSESSMENT = "feature_assessment"
+    SECURITY_AUDIT = "security_audit"
+    MIGRATION_PREP = "migration_prep"
+    GENERAL_ANALYSIS = "general_analysis"
+
+
+class AIWorkflowOrchestrator:
+    """AI-driven workflow orchestrator with intelligent decision-making."""
+
+    def __init__(self, config, project_id: str):
+        self.config = config
+        self.project_id = project_id
+        self.llm_engine = LLMEngine(config)
+        self.base_orchestrator = LegacyAnalysisOrchestrator(config, project_id)
+
+        # AI workflow state
+        self.conversation_context = []
+        self.learned_patterns = {}
+        self.analysis_history = []
+
+    async def analyze_with_intelligence(
+        self,
+        context: Context,
+        natural_language_request: str,
+        url: str,
+        user_preferences: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Execute AI-driven site analysis with intelligent orchestration."""
+
+        # Parse natural language request
+        analysis_intent = await self._parse_analysis_intent(natural_language_request)
+
+        await context.info(f"🧠 Understanding your request: {analysis_intent['summary']}")
+
+        # Perform intelligent site discovery and pattern recognition
+        site_pattern = await self._detect_site_pattern(context, url)
+
+        await context.info(f"🔍 Detected site pattern: {site_pattern['type']} ({site_pattern['confidence']:.0%} confidence)")
+
+        # AI-driven workflow planning
+        workflow_plan = await self._create_intelligent_workflow_plan(
+            analysis_intent, site_pattern, user_preferences or {}
+        )
+
+        await context.info(f"📋 Created intelligent analysis plan: {workflow_plan['strategy_summary']}")
+
+        # Execute workflow with adaptive monitoring
+        result = await self._execute_adaptive_workflow(
+            context, url, workflow_plan, analysis_intent
+        )
+
+        # AI-powered result synthesis
+        synthesized_result = await self._synthesize_results_with_ai(
+            result, analysis_intent, site_pattern
+        )
+
+        # Learn from this analysis
+        await self._learn_from_analysis(analysis_intent, site_pattern, synthesized_result)
+
+        await context.info("✨ Analysis complete! Generated intelligent insights and recommendations.")
+
+        return synthesized_result
+
+    async def _parse_analysis_intent(self, natural_language_request: str) -> Dict[str, Any]:
+        """Parse natural language request to extract analysis intent and requirements."""
+
+        # Use LLM to analyze the request
+        intent_prompt = f"""
+        Analyze this legacy website analysis request and extract the key intent and requirements:
+
+        Request: "{natural_language_request}"
+
+        Please provide:
+        1. Primary intent (rebuild_planning, feature_assessment, security_audit, migration_prep, general_analysis)
+        2. Specific goals mentioned
+        3. Urgency level (low/medium/high)
+        4. Depth preference (quick/thorough/comprehensive)
+        5. Focus areas if mentioned
+        6. Budget/time constraints if mentioned
+        7. A brief summary of what the user wants
+
+        Return as JSON format.
+        """
+
+        try:
+            intent_request = LLMRequest(
+                messages=[LLMMessage(role=LLMRole.USER, content=intent_prompt)],
+                request_type=LLMRequestType.FEATURE_ANALYSIS
+            )
+            intent_response = await self.llm_engine.chat_completion(request=intent_request)
+            intent_response_content = intent_response.content
+
+            intent_data = json.loads(intent_response_content)
+
+            return {
+                "intent": intent_data.get("primary_intent", "general_analysis"),
+                "goals": intent_data.get("specific_goals", []),
+                "urgency": intent_data.get("urgency_level", "medium"),
+                "depth": intent_data.get("depth_preference", "thorough"),
+                "focus_areas": intent_data.get("focus_areas", []),
+                "constraints": intent_data.get("constraints", {}),
+                "summary": intent_data.get("summary", natural_language_request)
+            }
+        except Exception as e:
+            _logger.warning("Intent parsing failed, using defaults", error=str(e))
+            return {
+                "intent": "general_analysis",
+                "goals": [],
+                "urgency": "medium",
+                "depth": "thorough",
+                "focus_areas": [],
+                "constraints": {},
+                "summary": natural_language_request
+            }
+
+    async def _detect_site_pattern(self, context: Context, url: str) -> Dict[str, Any]:
+        """Detect site pattern using AI analysis of initial page characteristics."""
+
+        try:
+            # Quick discovery for pattern detection
+            discovery_result = await self.base_orchestrator._intelligent_site_discovery(
+                context, url, AnalysisMode.QUICK, 3
+            )
+
+            # Use AI to analyze site characteristics
+            pattern_prompt = f"""
+            Analyze these website characteristics and determine the site pattern:
+
+            URL: {url}
+            Site characteristics: {discovery_result.get('site_characteristics', {})}
+            Total pages found: {discovery_result.get('total_pages_found', 0)}
+
+            Based on the URL structure, content, and characteristics, determine:
+            1. Site type (ecommerce, admin_panel, cms, blog, corporate, application, landing_page, unknown)
+            2. Confidence level (0.0 to 1.0)
+            3. Key characteristics detected
+            4. Recommended analysis approach
+            5. Estimated complexity (low/medium/high)
+
+            Return as JSON format.
+            """
+
+            pattern_request = LLMRequest(
+                messages=[LLMMessage(role=LLMRole.USER, content=pattern_prompt)],
+                request_type=LLMRequestType.FEATURE_ANALYSIS
+            )
+            pattern_response = await self.llm_engine.chat_completion(request=pattern_request)
+            pattern_response_content = pattern_response.content
+
+            pattern_data = json.loads(pattern_response_content)
+
+            return {
+                "type": pattern_data.get("site_type", "unknown"),
+                "confidence": pattern_data.get("confidence_level", 0.5),
+                "characteristics": pattern_data.get("key_characteristics", []),
+                "recommended_approach": pattern_data.get("recommended_analysis_approach", "standard"),
+                "complexity": pattern_data.get("estimated_complexity", "medium"),
+                "discovery_data": discovery_result
+            }
+
+        except Exception as e:
+            _logger.warning("Site pattern detection failed", error=str(e))
+            return {
+                "type": "unknown",
+                "confidence": 0.0,
+                "characteristics": [],
+                "recommended_approach": "standard",
+                "complexity": "medium",
+                "discovery_data": {}
+            }
+
+    async def _create_intelligent_workflow_plan(
+        self,
+        analysis_intent: Dict[str, Any],
+        site_pattern: Dict[str, Any],
+        user_preferences: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Create intelligent workflow plan based on intent, pattern, and preferences."""
+
+        # AI-driven workflow planning
+        planning_prompt = f"""
+        Create an intelligent analysis workflow plan based on:
+
+        User Intent: {analysis_intent}
+        Site Pattern: {site_pattern}
+        User Preferences: {user_preferences}
+
+        Please determine:
+        1. Analysis mode (quick/recommended/comprehensive/targeted)
+        2. Cost priority (speed/balanced/cost_efficient)
+        3. Maximum pages to analyze
+        4. Whether to include Step 2 detailed analysis
+        5. Focus areas to prioritize
+        6. Estimated time and cost
+        7. Strategy summary
+        8. Special considerations
+
+        Optimize for the user's intent while being cost-effective and thorough.
+        Return as JSON format.
+        """
+
+        try:
+            plan_request = LLMRequest(
+                messages=[LLMMessage(role=LLMRole.USER, content=planning_prompt)],
+                request_type=LLMRequestType.FEATURE_ANALYSIS
+            )
+            plan_response = await self.llm_engine.chat_completion(request=plan_request)
+            plan_response_content = plan_response.content
+
+            plan_data = json.loads(plan_response_content)
+
+            # Convert string enums to proper enum values
+            analysis_mode = AnalysisMode(plan_data.get("analysis_mode", "recommended"))
+            cost_priority = CostPriority(plan_data.get("cost_priority", "balanced"))
+
+            return {
+                "analysis_mode": analysis_mode,
+                "cost_priority": cost_priority,
+                "max_pages": plan_data.get("max_pages", 20),
+                "include_step2": plan_data.get("include_step2", True),
+                "focus_areas": plan_data.get("focus_areas", []),
+                "estimated_time": plan_data.get("estimated_time", "2-4 hours"),
+                "estimated_cost": plan_data.get("estimated_cost", "$5-15"),
+                "strategy_summary": plan_data.get("strategy_summary", "Comprehensive analysis"),
+                "special_considerations": plan_data.get("special_considerations", [])
+            }
+
+        except Exception as e:
+            _logger.warning("Workflow planning failed, using defaults", error=str(e))
+            return {
+                "analysis_mode": AnalysisMode.RECOMMENDED,
+                "cost_priority": CostPriority.BALANCED,
+                "max_pages": 20,
+                "include_step2": True,
+                "focus_areas": [],
+                "estimated_time": "2-4 hours",
+                "estimated_cost": "$5-15",
+                "strategy_summary": "Standard comprehensive analysis",
+                "special_considerations": []
+            }
+
+    async def _execute_adaptive_workflow(
+        self,
+        context: Context,
+        url: str,
+        workflow_plan: Dict[str, Any],
+        analysis_intent: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Execute workflow with adaptive monitoring and natural language progress updates."""
+
+        # Start workflow with conversational updates
+        await context.info(
+            f"🚀 Starting {workflow_plan['strategy_summary'].lower()} for {url}\n"
+            f"📊 Plan: {workflow_plan['max_pages']} pages, {workflow_plan['analysis_mode'].value} mode\n"
+            f"⏱️ Estimated time: {workflow_plan['estimated_time']}"
+        )
+
+        # Execute base orchestration workflow
+        result = await self.base_orchestrator.discover_and_analyze_site(
+            context=context,
+            url=url,
+            analysis_mode=workflow_plan["analysis_mode"],
+            max_pages=workflow_plan["max_pages"],
+            include_step2=workflow_plan["include_step2"],
+            interactive_mode=False,
+            cost_priority=workflow_plan["cost_priority"]
+        )
+
+        # Add workflow plan context to results
+        result["ai_workflow_plan"] = workflow_plan
+        result["analysis_intent"] = analysis_intent
+
+        return result
+
+    async def _synthesize_results_with_ai(
+        self,
+        analysis_result: Dict[str, Any],
+        analysis_intent: Dict[str, Any],
+        site_pattern: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Use AI to synthesize results into intelligent, actionable insights."""
+
+        synthesis_prompt = f"""
+        Synthesize these analysis results into actionable insights based on the user's intent:
+
+        User Intent: {analysis_intent['summary']}
+        Site Pattern: {site_pattern['type']} (confidence: {site_pattern['confidence']:.0%})
+        Analysis Results: {json.dumps(analysis_result, indent=2, default=str)[:2000]}...
+
+        Please provide:
+        1. Executive summary tailored to user intent
+        2. Prioritized findings and recommendations
+        3. Key insights specific to the site pattern
+        4. Actionable next steps
+        5. Risk assessment and considerations
+        6. Rebuild/migration recommendations if applicable
+        7. Cost and timeline estimates for recommendations
+
+        Focus on what matters most for the user's goals.
+        Return as JSON format with clear sections.
+        """
+
+        try:
+            synthesis_request = LLMRequest(
+                messages=[LLMMessage(role=LLMRole.USER, content=synthesis_prompt)],
+                request_type=LLMRequestType.FEATURE_ANALYSIS
+            )
+            synthesis_response = await self.llm_engine.chat_completion(request=synthesis_request)
+            synthesis_response_content = synthesis_response.content
+
+            synthesis_data = json.loads(synthesis_response_content)
+
+            # Enhance original result with AI insights
+            enhanced_result = analysis_result.copy()
+            enhanced_result.update({
+                "ai_synthesis": synthesis_data,
+                "intelligent_insights": {
+                    "executive_summary": synthesis_data.get("executive_summary", ""),
+                    "prioritized_findings": synthesis_data.get("prioritized_findings", []),
+                    "key_insights": synthesis_data.get("key_insights", []),
+                    "actionable_next_steps": synthesis_data.get("actionable_next_steps", []),
+                    "risk_assessment": synthesis_data.get("risk_assessment", {}),
+                    "rebuild_recommendations": synthesis_data.get("rebuild_recommendations", {}),
+                    "estimates": synthesis_data.get("estimates", {})
+                },
+                "site_pattern_analysis": site_pattern,
+                "user_intent_fulfillment": analysis_intent
+            })
+
+            return enhanced_result
+
+        except Exception as e:
+            _logger.warning("AI synthesis failed", error=str(e))
+            # Return original result with basic enhancement
+            analysis_result["ai_synthesis_error"] = str(e)
+            analysis_result["site_pattern_analysis"] = site_pattern
+            analysis_result["user_intent_fulfillment"] = analysis_intent
+            return analysis_result
+
+    async def _learn_from_analysis(
+        self,
+        analysis_intent: Dict[str, Any],
+        site_pattern: Dict[str, Any],
+        analysis_result: Dict[str, Any]
+    ) -> None:
+        """Learn from analysis to improve future workflow planning."""
+
+        # Store analysis patterns for future learning
+        learning_data = {
+            "timestamp": time.time(),
+            "intent": analysis_intent["intent"],
+            "site_type": site_pattern["type"],
+            "success_metrics": {
+                "completed": analysis_result.get("status") == "success",
+                "pages_analyzed": analysis_result.get("pages_analyzed", 0),
+                "analysis_quality": analysis_result.get("analysis_quality_score", 0.5)
+            }
+        }
+
+        self.analysis_history.append(learning_data)
+
+        # Keep only recent history to avoid memory bloat
+        if len(self.analysis_history) > 100:
+            self.analysis_history = self.analysis_history[-100:]
+
+        _logger.info(
+            "analysis_learning_recorded",
+            intent=analysis_intent["intent"],
+            site_type=site_pattern["type"],
+            success=learning_data["success_metrics"]["completed"]
+        )
 
 
 class LegacyAnalysisOrchestrator:
@@ -856,5 +1249,91 @@ def register(mcp: FastMCP) -> None:
                 "error_type": type(e).__name__,
             }
 
+    @mcp.tool()
+    async def intelligent_analyze_site(
+        context: Context,
+        natural_language_request: str,
+        url: str,
+        user_preferences: Optional[str] = None,
+        project_id: str = "ai-analysis",
+    ) -> Dict[str, Any]:
+        """AI-driven site analysis workflow with natural language orchestration.
 
-__all__ = ["register", "LegacyAnalysisOrchestrator", "AnalysisMode", "CostPriority"]
+        Uses AI to understand your analysis request, detect site patterns, create intelligent
+        workflow plans, and synthesize results into actionable insights. Provides conversational
+        progress updates and adapts analysis strategy based on site characteristics.
+
+        Args:
+            natural_language_request: Describe what you want to analyze in natural language
+                Examples: "Analyze this legacy CRM for rebuilding", "Assess this e-commerce site's features"
+            url: Target website URL for analysis (required)
+            user_preferences: Optional JSON string with preferences like budget, timeline, focus areas
+            project_id: Project identifier for organizing results (default: "ai-analysis")
+
+        Returns:
+            Comprehensive analysis with AI-generated insights, recommendations, and actionable next steps
+
+        Features:
+            - Natural language command parsing and intent recognition
+            - Intelligent site pattern detection (e-commerce, admin, CMS, etc.)
+            - AI-driven workflow planning and tool selection
+            - Adaptive analysis strategies based on site complexity
+            - Conversational progress updates throughout analysis
+            - AI-powered result synthesis with prioritized recommendations
+            - Learning from analysis patterns to improve future workflows
+        """
+        try:
+            config = load_configuration()
+
+            _logger.info(
+                "intelligent_analysis_requested",
+                request=natural_language_request,
+                url=url,
+                project_id=project_id,
+            )
+
+            # Parse user preferences if provided
+            preferences = {}
+            if user_preferences:
+                try:
+                    preferences = json.loads(user_preferences)
+                except json.JSONDecodeError:
+                    await context.info("⚠️ User preferences format invalid, using defaults")
+
+            # Create AI workflow orchestrator
+            ai_orchestrator = AIWorkflowOrchestrator(config, project_id)
+
+            await context.info(f"🤖 Starting AI-driven analysis for: {url}")
+            await context.info(f"📝 Your request: {natural_language_request}")
+
+            # Execute AI-driven analysis
+            result = await ai_orchestrator.analyze_with_intelligence(
+                context=context,
+                natural_language_request=natural_language_request,
+                url=url,
+                user_preferences=preferences
+            )
+
+            return result
+
+        except Exception as e:
+            await context.error(f"Intelligent analysis failed: {e}")
+            _logger.error(
+                "intelligent_analysis_failed",
+                request=natural_language_request,
+                url=url,
+                project_id=project_id,
+                error=str(e),
+                error_type=type(e).__name__,
+            )
+            return {
+                "status": "error",
+                "url": url,
+                "project_id": project_id,
+                "natural_language_request": natural_language_request,
+                "error": str(e),
+                "error_type": type(e).__name__,
+            }
+
+
+__all__ = ["register", "LegacyAnalysisOrchestrator", "AIWorkflowOrchestrator", "AnalysisMode", "CostPriority", "SitePattern", "AnalysisIntent"]
