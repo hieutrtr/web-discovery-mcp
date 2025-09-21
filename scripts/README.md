@@ -331,6 +331,176 @@ python scripts/check_env.py
 python scripts/check_env.py --keys OPENAI_API_KEY ANTHROPIC_API_KEY GEMINI_API_KEY
 ```
 
+### 13. `test_feature_analyzer_story_3_7.py` - Story 3.7 FeatureAnalyzer MCP Integration Testing
+
+Tests the integration of FeatureAnalyzer into the MCP server as the analyze_page_features tool, covering all acceptance criteria from Story 3.7: Step 2 Feature Analysis MCP Integration.
+
+**Usage:**
+```bash
+# Run all tests (full mode, 15 tests)
+python scripts/test_feature_analyzer_story_3_7.py
+
+# Run quick tests only (8 core tests)
+python scripts/test_feature_analyzer_story_3_7.py --mode=quick
+
+# Run with verbose output
+python scripts/test_feature_analyzer_story_3_7.py --verbose
+
+# Combine options
+python scripts/test_feature_analyzer_story_3_7.py --mode=quick --verbose
+```
+
+**Test Coverage:**
+- ✅ FeatureAnalyzer class instantiation and data models
+- ✅ MCP server creation and tool registration
+- ✅ analyze_page_features tool validation
+- ✅ Input validation schema and error handling
+- ✅ Integration with existing analysis tools
+- ✅ Documentation compatibility and output schema
+- ✅ Performance requirements and MCP protocol compliance
+
+**Examples:**
+```bash
+# Quick validation of core functionality
+python scripts/test_feature_analyzer_story_3_7.py --mode=quick
+
+# Comprehensive testing with detailed output
+python scripts/test_feature_analyzer_story_3_7.py --mode=full --verbose
+
+# Generate JSON test report
+python scripts/test_feature_analyzer_story_3_7.py
+# Report saved to: scripts/feature_analyzer_test_report.json
+```
+
+### 13b. `test_feature_analyzer_with_real_llm.py` - Story 3.7 Real LLM Integration Testing
+
+Tests the analyze_page_features tool with **actual LLM API calls** to demonstrate complete Step 1 + Step 2 analysis workflow with real AI-generated results.
+
+**Prerequisites:**
+```bash
+# Set up at least one LLM API key
+export OPENAI_API_KEY="your-openai-key"
+# OR
+export ANTHROPIC_API_KEY="your-anthropic-key"
+# OR
+export GEMINI_API_KEY="your-gemini-key"
+```
+
+**Usage:**
+```bash
+# Run real LLM integration tests (costs ~$0.05-0.20)
+python scripts/test_feature_analyzer_with_real_llm.py
+```
+
+**What This Test Does:**
+- 🧠 Makes **real API calls** to LLM providers (OpenAI/Anthropic/Gemini)
+- 📊 Tests **complete Step 1 + Step 2 workflow** with actual AI analysis
+- 🔍 Analyzes realistic login page content with 6 interactive elements
+- 📋 Shows **actual LLM-generated results** for:
+  - Interactive elements identification and purpose analysis
+  - Functional capabilities detection
+  - Business rules extraction
+  - API integration recommendations
+  - Rebuild specifications with priority scoring
+- ⚡ Tests both full analysis and Step 2-only modes
+- 💰 Displays cost and performance metrics
+
+**Example Output:**
+```bash
+✅ REAL LLM ANALYSIS SUCCESSFUL!
+🧠 Step 1 (Content Summarization) Results:
+   Purpose: User authentication and account access portal
+   User Context: Registered users requiring secure account access
+   Business Logic: Credential validation and session management
+   Confidence: 0.87
+
+🔍 Step 2 (Feature Analysis) Results:
+   Interactive Elements: 4
+   Functional Capabilities: 3
+   Business Rules: 2
+   Overall Confidence: 0.82
+   Quality Score: 0.79
+
+📱 Interactive Elements Found by LLM:
+   1. input - Email address collection for authentication
+   2. input - Password input for user verification
+   3. button - Submit authentication credentials
+```
+
+### 14. `test_orchestration_story_6_4.py` - Story 6.4 High-Level Workflow Orchestration Testing
+
+Tests the high-level workflow orchestration tools from Story 6.4, including intelligent workflow planning, cost optimization, and seamless integration of all existing MCP tools into conversational AI-friendly workflows.
+
+**Usage:**
+```bash
+# Run all tests (full mode, 36 tests)
+python scripts/test_orchestration_story_6_4.py
+
+# Run quick tests only (23 core tests)
+python scripts/test_orchestration_story_6_4.py --mode=quick
+
+# Run with verbose output
+python scripts/test_orchestration_story_6_4.py --verbose
+
+# Combine options
+python scripts/test_orchestration_story_6_4.py --mode=quick --verbose
+```
+
+**Test Coverage:**
+- ✅ Orchestrator initialization and workflow planning
+- ✅ Page selection algorithms and cost estimation
+- ✅ Analysis strategy creation and optimization
+- ✅ MCP tool registration (analyze_legacy_site, analyze_with_recommendations, get_analysis_status)
+- ✅ Error handling and custom exception hierarchy
+- ✅ Server integration and parameter validation
+- ✅ Performance metrics and file system integration
+
+**Examples:**
+```bash
+# Quick validation of orchestration core
+python scripts/test_orchestration_story_6_4.py --mode=quick
+
+# Full test suite with detailed logging
+python scripts/test_orchestration_story_6_4.py --mode=full --verbose
+
+# Generate JSON test report
+python scripts/test_orchestration_story_6_4.py
+# Report saved to: scripts/orchestration_test_report.json
+```
+
+### 15. `orchestration_usage_example.py` - Story 6.4 Orchestration Demo
+
+Interactive demonstration script showing the transformation from manual tool coordination (15+ individual tool calls) to intelligent orchestrated workflows (single command execution).
+
+**Usage:**
+```bash
+# Run interactive demo
+python scripts/orchestration_usage_example.py
+```
+
+**Demo Features:**
+- 📝 Before/After workflow comparison
+- 🚀 Single-command site analysis demonstration
+- 🤖 AI-driven analysis recommendations
+- 🎯 Interactive mode with human oversight
+- 📈 Status tracking and progress monitoring
+
+**Example Output:**
+```bash
+# Shows transformation from:
+# 1. mcp_call discover_website(url='https://old-app.example.com')
+# 2. mcp_call analyze_site_structure(discovered_urls)
+# ... 15+ manual steps
+
+# To orchestrated workflow:
+# mcp_call analyze_legacy_site(
+#     url='https://old-app.example.com',
+#     analysis_mode='recommended',
+#     include_step2=True,
+#     interactive_mode=False
+# )
+```
+
 ## Available MCP Tools
 
 The server provides these tools that you can test:
@@ -401,6 +571,18 @@ The server provides these tools that you can test:
 | Tool | Description | Arguments |
 |------|-------------|-----------|
 | `summarize_page_content` | Perform Step 1 Content Summarization analysis on a single page | `url`, `project_id` (optional), `browser_engine` (optional) |
+
+### Step 2 Feature Analysis Tools (Story 3.7)
+| Tool | Description | Arguments |
+|------|-------------|-----------|
+| `analyze_page_features` | Perform Step 2 Feature Analysis on a single page with detailed interactive elements, functional capabilities, and rebuild specifications | `url`, `content` (optional), `skip_step1` (optional), `project_id` (optional) |
+
+### High-Level Workflow Orchestration Tools (Story 6.4)
+| Tool | Description | Arguments |
+|------|-------------|-----------|
+| `analyze_legacy_site` | Orchestrate complete legacy website analysis workflow with intelligent planning and cost optimization | `url`, `analysis_mode` (optional), `max_pages` (optional), `include_step2` (optional), `interactive_mode` (optional), `project_id` (optional), `cost_priority` (optional) |
+| `analyze_with_recommendations` | Analyze website with AI-driven strategy recommendations based on site characteristics | `url`, `project_id` (optional) |
+| `get_analysis_status` | Get status and progress information for ongoing or completed analysis workflows | `project_id` |
 
 ## Environment Setup
 

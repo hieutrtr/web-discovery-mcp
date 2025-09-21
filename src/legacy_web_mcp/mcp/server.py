@@ -18,6 +18,7 @@ from legacy_web_mcp.mcp import (
     interaction_tools,
     navigation_tools,
     network_tools,
+    orchestration_tools,
     workflow_tools,
 )
 from legacy_web_mcp.shared.logging import configure_logging
@@ -62,6 +63,7 @@ def create_mcp() -> FastMCP:
     interaction_tools.register(mcp)
     analysis_tools.register(mcp)
     workflow_tools.register(mcp)
+    orchestration_tools.register(mcp)  # High-level workflow orchestration
     return mcp
 
 
