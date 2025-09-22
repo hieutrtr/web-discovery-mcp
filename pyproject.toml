@@ -28,7 +28,7 @@ dev = [
 
 [project.scripts]
 legacy-web-mcp = "legacy_web_mcp.cli:main"
-run-mcp-stdio = "legacy_web_mcp.mcp.server"
+run-mcp-stdio = "legacy_web_mcp.mcp.server:run"
 
 [build-system]
 requires = ["setuptools>=68", "wheel"]
