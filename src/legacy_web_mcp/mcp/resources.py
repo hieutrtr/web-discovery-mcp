@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 from urllib.parse import quote, unquote
 
-from fastmcp import FastMCP
+from fastmcp import FastMCP, Context
 # Note: Using dict instead of Resource class for compatibility
 
 from ..file_management.organizer import ProjectArtifactOrganizer
@@ -175,29 +175,14 @@ def register_project_resources(mcp: FastMCP, project_root: str, project_name: st
     _resource_providers[project_name] = provider
 
     # Register list resources handler
-    @mcp.list_resources
-    async def list_web_discovery_resources() -> List[Dict[str, str]]:
-        """List all web discovery resources across all registered projects."""
-        all_resources = []
-        for project_name, provider in _resource_providers.items():
-            try:
-                resources = provider.list_all_resources()
-                # Add project prefix to resource names
-                for resource in resources:
-                    resource["name"] = f"[{project_name}] {resource['name']}"
-                all_resources.extend(resources)
-            except Exception as e:
-                # Log error but don't fail the entire listing
-                import structlog
-                logger = structlog.get_logger(__name__)
-                logger.error("failed_to_list_resources", project=project_name, error=str(e))
 
-        return all_resources
 
     # Register read resource handler
-    @mcp.read_resource
-    async def read_web_discovery_resource(uri: str) -> str:
-        """Read a web discovery resource by URI."""
+    @mcp.resource("web_discovery://{file_path}")
+    async def read_web_discovery_resource(file_path: str) -> str:
+        """Read a web discovery resource by URI path."""
+        # Reconstruct the full URI
+        uri = f"web_discovery://{file_path}"
         # Try each provider until we find one that can handle the URI
         for project_name, provider in _resource_providers.items():
             try:
