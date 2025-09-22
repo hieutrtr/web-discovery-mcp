@@ -13,7 +13,8 @@ The Legacy Web MCP Server transforms 4-6 week manual legacy application analysis
 - ✅ **Epic 1-2**: Foundation, Browser Automation (Complete)
 - ✅ **Epic 3**: LLM Integration (6/6 stories - Complete including 3.5 and 3.6)
 - ✅ **Stories 6.4-6.5**: High-level orchestration and AI-driven workflows
-- ❌ **Epic 4-5**: Progress tracking, Interactive/YOLO modes (Not started)
+- ✅ **Story 4.4**: MCP Artifact Organization and File Management (Complete)
+- ❌ **Epic 4-5**: Progress tracking, Interactive/YOLO modes (Partially started)
 
 ## Core System Architecture
 
@@ -44,6 +45,7 @@ User Request → AI Orchestration → Discovery Pipeline → Browser Automation 
 - **Role**: MCP protocol implementation and tool registration
 - **Key Functions**: `create_mcp()`, tool registration, context management
 - **Integration Point**: All MCP tools register here
+- **Recent Updates**: Added file management tools and MCP resource provider registration
 
 #### **`orchestration_tools.py`** - High-Level Workflow Orchestration ⭐ **CORE MODULE**
 - **Role**: Intelligent workflow coordination and AI-driven analysis
@@ -55,6 +57,22 @@ User Request → AI Orchestration → Discovery Pipeline → Browser Automation 
   - `intelligent_analyze_site()`: Natural language AI-driven analysis
   - `analyze_with_recommendations()`: AI strategy selection
   - `get_analysis_status()`: Progress monitoring
+
+#### **`file_management_tools.py`** - Project Documentation Organization ⭐ **NEW MODULE**
+- **Role**: Organize analysis artifacts into structured project documentation
+- **Key Tools**:
+  - `setup_project_documentation_structure()`: Create project docs structure
+  - `organize_project_artifacts()`: Organize artifacts into documentation
+  - `generate_master_analysis_report()`: Create comprehensive reports
+  - `list_project_documentation_files()`: Inventory documentation files
+  - `generate_url_slug()`: Convert URLs to safe filenames
+  - `create_gitignore_for_web_discovery()`: Version control guidance
+
+#### **`resources.py`** - MCP Resource Provider ⭐ **NEW MODULE**
+- **Role**: Expose project documentation as MCP resources for AI tools
+- **Key Classes**:
+  - `WebDiscoveryResourceProvider`: Resource discovery and content access
+- **Features**: URI-based resource access, content serving, resource listing
 
 ### 2. Discovery Pipeline (`src/legacy_web_mcp/discovery/`)
 
@@ -123,7 +141,31 @@ PageAnalysisData → Step1 (ContentSummarizer) → ContentSummary
 - **Output**: `FeatureAnalysis`
 - **LLM Usage**: Interactive elements, functional capabilities, rebuild specs
 
-### 6. Quality and Debugging Infrastructure (`src/legacy_web_mcp/llm/`)
+### 6. File Management System (`src/legacy_web_mcp/file_management/`) ⭐ **NEW MODULE**
+
+#### **`organizer.py`** - Project Artifact Organization ⭐ **CORE FILE MANAGEMENT**
+- **Role**: Complete file organization system for project documentation
+- **Key Classes**:
+  - `ProjectMetadata`: Project metadata tracking and persistence
+  - `ProjectArtifactOrganizer`: Main orchestration for artifact organization
+- **Key Features**:
+  - Project documentation structure creation (`<project>/docs/web_discovery/`)
+  - URL slug generation for safe filenames
+  - Page analysis markdown generation with cross-references
+  - Project metadata JSON management
+  - Master analysis report integration
+- **Directory Structure Created**:
+  ```
+  <project>/docs/web_discovery/
+  ├── analysis-metadata.json
+  ├── analysis-report.md
+  ├── pages/
+  │   └── page-{url-slug}.md
+  ├── progress/
+  └── reports/
+  ```
+
+### 7. Quality and Debugging Infrastructure (`src/legacy_web_mcp/llm/`)
 
 #### **`quality.py`** - Quality Validation and Scoring ⭐ **QUALITY CORE**
 - **Role**: Comprehensive quality validation for LLM analysis responses
@@ -147,7 +189,7 @@ PageAnalysisData → Step1 (ContentSummarizer) → ContentSummary
   - `DebugSession`: Comprehensive debug session management
 - **Features**: Quality assessment logging, trend analysis, improvement recommendations
 
-### 7. Configuration Management (`src/legacy_web_mcp/config/`)
+### 8. Configuration Management (`src/legacy_web_mcp/config/`)
 
 #### **`settings.py`** - Environment Configuration
 - **Role**: Environment variables, API keys, model selection
@@ -182,6 +224,20 @@ PageAnalysisData ─→ Step 1 (ContentSummarizer) ─→ Enhanced ContentSummar
                     Step 2 (FeatureAnalyzer) ←─── Rich Context Data
                                     ↓
                             Context-Aware FeatureAnalysis
+```
+
+### 4. File Management Flow (Story 4.4)
+```
+Analysis Artifacts ─→ ProjectArtifactOrganizer ─→ Project Documentation Structure
+                                │                         │
+                                ▼                         ▼
+                      URL Slug Generation        Page Markdown Files
+                                │                         │
+                                ▼                         ▼
+                      Master Report Generation ─→ MCP Resource Exposure
+                                                          │
+                                                          ▼
+                                                  AI Tool Access
 ```
 
 ## Technical Implementation Patterns
@@ -239,6 +295,35 @@ llm_engine = LLMEngine(config)
 await llm_engine.initialize()
 ```
 
+### 5. MCP Resource Pattern (Story 4.4)
+```python
+# Resource provider pattern for exposing documentation to AI tools
+class CustomResourceProvider:
+    def __init__(self, project_root: str):
+        self.project_root = Path(project_root)
+
+    def list_all_resources(self) -> List[Dict[str, str]]:
+        """Return list of available resources."""
+        return [
+            {
+                "uri": f"custom_scheme://path/to/resource",
+                "name": "Resource Name",
+                "description": "Resource description",
+                "mimeType": "application/json"
+            }
+        ]
+
+    def get_resource_content(self, uri: str) -> str:
+        """Return content for the given URI."""
+        # Parse URI and return file content
+        return file_content
+
+# Registration pattern
+@mcp.resource("custom_scheme://")
+async def handle_resource(uri: str) -> str:
+    return provider.get_resource_content(uri)
+```
+
 ## Critical Integration Points for Future Stories
 
 ### Story 3.5: Context Passing Between Analysis Steps (Completed)
@@ -257,6 +342,16 @@ await llm_engine.initialize()
 - **`src/legacy_web_mcp/llm/debugging.py`**: Production-ready debugging tools with session tracking, quality assessment logging, and improvement recommendations.
 - **`src/legacy_web_mcp/mcp/debugging_tools.py`**: 8 new MCP tools exposing debugging capabilities including artifact management, quality validation, and session monitoring.
 - **Updated Analysis Components**: Both ContentSummarizer and FeatureAnalyzer now use quality-validated chat completion with comprehensive error handling and artifact persistence.
+
+### Story 4.4: MCP Artifact Organization and File Management (Completed)
+
+#### **Implementation Summary**:
+- **`src/legacy_web_mcp/file_management/organizer.py`**: Complete project documentation organization system with ProjectArtifactOrganizer class, URL slug generation, and markdown file generation with cross-references.
+- **`src/legacy_web_mcp/mcp/file_management_tools.py`**: 6 new MCP tools for project setup, artifact organization, master report generation, documentation listing, URL slug generation, and version control guidance.
+- **`src/legacy_web_mcp/mcp/resources.py`**: MCP resource provider system exposing project documentation via `web_discovery://` URI scheme for AI tool access.
+- **`src/legacy_web_mcp/mcp/server.py`**: Updated to register file management tools and resource providers.
+- **Project Documentation Structure**: Standardized `<project>/docs/web_discovery/` structure with analysis metadata, master reports, per-page analysis files, and MCP resource exposure.
+- **Testing and Validation**: Comprehensive demo script and testing infrastructure for end-to-end file management workflow validation.
 
 ## Testing Strategy Context
 
@@ -320,13 +415,23 @@ Enhanced Analysis Pipeline:
 └── ✅ Production-Ready LLM Analysis
 ```
 
-### After Epic 4 (Progress Tracking)
+### After Story 4.4 (File Management)
+```
+Enhanced Documentation System:
+├── ✅ Project Documentation Structure (<project>/docs/web_discovery/)
+├── ✅ Artifact Organization with URL Slug Generation
+├── ✅ Master Analysis Report Integration
+├── ✅ MCP Resource Provider for AI Tool Access
+└── ✅ Version Control Guidance and Integration
+```
+
+### After Epic 4 (Progress Tracking - In Progress)
 ```
 Production Monitoring:
 ├── Real-time Progress Tracking
 ├── Checkpoint/Resume Functionality
-├── Structured Documentation Generation
-└── Artifact Organization
+├── Enhanced Documentation Generation (✅ Partially Complete)
+└── Advanced Artifact Organization (✅ Complete)
 ```
 
 ### After Epic 5 (Interactive/YOLO Modes)
