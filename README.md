@@ -1,133 +1,97 @@
 # Legacy Web MCP Server
 
-Legacy Web MCP Server implements the Model Context Protocol (MCP) to power automated discovery and analysis of legacy web applications. This repository provides the backend foundation for crawling websites, analyzing site structure, and generating comprehensive documentation artifacts that help teams understand and plan modernization efforts.
+[![PyPI version](https://badge.fury.io/py/legacy-web-mcp.svg)](https://pypi.org/project/legacy-web-mcp/)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+
+Legacy Web MCP Server implements the Model Context Protocol (MCP) to power automated discovery and analysis of legacy web applications. This AI-powered tool helps development teams automatically crawl websites, analyze site structure, and generate comprehensive documentation artifacts for modernization planning.
+
+**🚀 Now available on PyPI!** Install and run globally with `uvx legacy-web-mcp`
 
 ## Getting Started
 
-### Prerequisites
+## Quick Start
 
-- Python 3.11+
-- [uv](https://github.com/astral-sh/uv) for dependency management
-- Optional: Playwright browsers for enhanced crawling (`uv run playwright install`)
-
-### Installation
-
-#### Option 1: Development Installation (uv)
+### For Most Users (Recommended)
 
 ```bash
-uv sync
-```
-
-The command creates a virtual environment under `.venv/` and installs runtime and development dependencies.
-
-#### Option 2: Direct Execution (uvx)
-
-Run the MCP server directly without installation using `uvx`:
-
-```bash
-# Install uv/uvx if not already installed
+# Install uvx (if not already installed)
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# Run directly from GitHub repository
-uvx --from git+https://github.com/your-username/web-discovery-mcp-claude-1.git legacy-web-mcp
-
-# Or run locally from project directory
-uvx --from . legacy-web-mcp
-```
-
-#### Option 3: PyPI Installation (Recommended for End Users)
-
-```bash
-# Install and run from PyPI (when published)
+# Run the MCP server directly from PyPI
 uvx legacy-web-mcp
-
-# Or install to use in scripts
-pip install legacy-web-mcp
 ```
 
-### Running the Server
+That's it! The server is ready for MCP connections.
 
-#### Development Mode (with uv)
+## Detailed Installation Steps
+
+### Step 1: Install uvx
+
+The Legacy Web MCP Server uses `uvx` for isolation and easy installation. Install it if you haven't already:
+
+#### On macOS/Linux:
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+#### On Windows:
+```powershell
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+
+#### Verify Installation:
+```bash
+uvx --version
+```
+
+### Step 2: Install Legacy Web MCP Server
+
+#### Option A: Direct Execution (Recommended)
+```bash
+# Run directly from PyPI - no installation required
+uvx legacy-web-mcp
+```
+
+#### Option B: Global Installation
+```bash
+# Install globally and run
+uvx install legacy-web-mcp
+legacy-web-mcp
+```
+
+#### Option C: Specific Version
+```bash
+# Install specific version
+uvx --from legacy-web-mcp==0.1.1 legacy-web-mcp
+```
+
+### Step 3: Verify Installation
 
 ```bash
-uv run legacy-web-mcp
+# Check version
+uvx legacy-web-mcp --version
+
+# Show help
+uvx legacy-web-mcp --help
+
+# Test server startup (Ctrl+C to stop)
+uvx legacy-web-mcp
 ```
 
-#### Direct Execution (with uvx)
+## Claude Desktop Configuration
 
-```bash
-# From GitHub
-uvx --from git+https://github.com/your-username/web-discovery-mcp-claude-1.git legacy-web-mcp
+### Step 1: Locate Configuration File
 
-# From local directory
-uvx --from . legacy-web-mcp
+**📍 Find your Claude Desktop configuration file:**
 
-# Using FastMCP CLI (alternative)
-fastmcp run fastmcp.json
-```
+- **macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Windows:** `%APPDATA%/Claude/claude_desktop_config.json`
+- **Linux:** `~/.config/claude-desktop/config.json`
 
-The entry point starts a FastMCP stdio server that provides comprehensive website discovery and analysis tools.
+### Step 2: Add MCP Server Configuration
 
-## Development Tooling
+**📝 Edit the configuration file** and add the Legacy Web MCP Server:
 
-- **Linting & Formatting:** `uv run ruff check` and `uv run ruff format`
-- **Static Typing:** `uv run mypy`
-- **Testing:** `uv run pytest`
-
-CI runs these same commands on every push via GitHub Actions.
-
-## MCP Client Configuration
-
-To integrate this server with MCP-compatible clients (like Claude Desktop), add the following configuration:
-
-### Claude Desktop Configuration
-
-Add to your Claude Desktop configuration file (`~/.config/claude-desktop/config.json`):
-
-```json
-{
-  "mcpServers": {
-    "legacy-web-mcp": {
-      "command": "uvx",
-      "args": [
-        "--from",
-        "git+https://github.com/your-username/web-discovery-mcp-claude-1.git",
-        "legacy-web-mcp"
-      ]
-    }
-  }
-}
-```
-
-### Alternative Configurations
-
-#### From Local Directory
-```json
-{
-  "mcpServers": {
-    "legacy-web-mcp": {
-      "command": "uvx",
-      "args": ["--from", ".", "legacy-web-mcp"],
-      "cwd": "/path/to/web-discovery-mcp-claude-1"
-    }
-  }
-}
-```
-
-#### Using Development Environment
-```json
-{
-  "mcpServers": {
-    "legacy-web-mcp": {
-      "command": "uv",
-      "args": ["run", "legacy-web-mcp"],
-      "cwd": "/path/to/web-discovery-mcp-claude-1"
-    }
-  }
-}
-```
-
-#### From PyPI (when published)
 ```json
 {
   "mcpServers": {
@@ -139,166 +103,324 @@ Add to your Claude Desktop configuration file (`~/.config/claude-desktop/config.
 }
 ```
 
+**If you already have other MCP servers configured:**
+
+```json
+{
+  "mcpServers": {
+    "existing-server": {
+      "command": "existing-command",
+      "args": ["existing-args"]
+    },
+    "legacy-web-mcp": {
+      "command": "uvx",
+      "args": ["legacy-web-mcp"]
+    }
+  }
+}
+```
+
+### Step 3: Restart Claude Desktop
+
+1. **Quit Claude Desktop completely**
+2. **Restart Claude Desktop**
+3. **Look for the MCP connection indicator** (🔌 icon)
+4. **Verify connection** - you should see "legacy-web-mcp" in the MCP panel
+
+## Environment Configuration (Optional)
+
+For AI-powered analysis features, configure LLM providers:
+
+### Step 1: Create Environment File
+
+```bash
+# If using development version, copy template
+cp .env.template .env
+```
+
+### Step 2: Configure LLM Providers
+
+Edit `.env` with your API keys:
+
+```bash
+# LLM Providers (choose one or more)
+OPENAI_API_KEY=your_openai_key_here
+ANTHROPIC_API_KEY=your_anthropic_key_here
+GEMINI_API_KEY=your_gemini_key_here
+
+# Model Configuration (Required if using LLMs)
+STEP1_MODEL=gpt-4o-mini
+STEP2_MODEL=gpt-4o-mini
+FALLBACK_MODEL=gpt-4o-mini
+
+# Provider-specific chat models
+OPENAI_CHAT_MODEL=gpt-4o-mini
+ANTHROPIC_CHAT_MODEL=claude-3-haiku-20240307
+GEMINI_CHAT_MODEL=gemini-1.5-flash
+
+# Browser & Concurrency Settings
+PLAYWRIGHT_HEADLESS=true
+MAX_CONCURRENT_PAGES=3
+
+# Output Directory
+OUTPUT_ROOT=docs/web_discovery
+```
+
+### Step 3: Install Browser Dependencies (Optional)
+
+For enhanced website crawling:
+
+```bash
+# Install Playwright browsers
+uvx --from legacy-web-mcp playwright install
+```
+
 ## Available MCP Tools
 
-The server provides the following tools:
+The server provides comprehensive website analysis and documentation tools:
 
+### 🔍 **Discovery & Analysis Tools**
+- **`discover_website`** - Comprehensive website structure discovery via sitemap/crawling
+- **`analyze_legacy_site`** - Complete automated analysis workflow for legacy applications
+- **`intelligent_analyze_site`** - AI-driven website analysis with natural language insights
+- **`analyze_with_recommendations`** - Analysis with AI-powered modernization recommendations
+
+### 📊 **System & Health Tools**
 - **`ping`** - Server health and status information
-- **`health_check`** - Comprehensive system health report
+- **`health_check`** - Comprehensive system health report with diagnostics
 - **`validate_dependencies`** - Check Playwright browser installations
-- **`test_llm_connectivity`** - Verify LLM provider connections
-- **`show_config`** - Display current configuration (redacted)
-- **`discover_website`** - Discover and analyze website structure
+- **`test_llm_connectivity`** - Verify LLM provider connections and API health
+- **`show_config`** - Display current configuration (redacted for security)
 
-## Testing and Development
+### 📁 **File Management & Documentation**
+- **`setup_project_documentation_structure`** - Create project documentation folders
+- **`organize_project_artifacts`** - Organize analysis results into project structure
+- **`generate_master_analysis_report`** - Create comprehensive analysis reports
+- **`generate_url_slug`** - Convert URLs to safe filenames
+- **`create_gitignore_for_web_discovery`** - Generate version control guidance
 
-### Manual Testing Scripts
+### 🔧 **Browser & Workflow Tools**
+- **`validate_browser_dependencies`** - Detailed browser installation status
+- **`get_browser_metrics`** - Performance metrics for browser sessions
+- **`execute_sequential_workflow`** - Multi-page analysis workflows
+- **`capture_page_screenshot`** - Page screenshot capture
+- **`simulate_page_interactions`** - Interactive element discovery and testing
 
-The `scripts/` directory contains comprehensive testing tools with full MCP support:
+### 🛠️ **Debugging & Development Tools**
+- **`inspect_debug_session`** - Analysis debugging and quality inspection
+- **`list_analysis_artifacts`** - View available analysis results
+- **`export_analysis_artifacts`** - Export analysis data for external use
+- **`validate_analysis_quality`** - Quality scoring and validation
+- **`cleanup_old_artifacts`** - Maintenance and cleanup operations
 
-```bash
-# Interactive testing of all tools
-python scripts/test_mcp_client.py
+## Testing Your Installation
 
-# Test ALL tools directly via MCP client (including discover_website!)
-python scripts/test_mcp_client.py ping
-python scripts/test_mcp_client.py health_check
-python scripts/test_mcp_client.py show_config
-python scripts/test_mcp_client.py validate_dependencies
-python scripts/test_mcp_client.py test_llm_connectivity
-python scripts/test_mcp_client.py discover_website https://context7.com
-
-# Alternative direct testing (bypasses MCP layer)
-python scripts/test_discovery_direct.py https://example.com
-python scripts/test_discovery_direct.py https://github.com
-
-# Comprehensive test suite
-python scripts/manual_test.py all
-python scripts/manual_test.py health
-python scripts/manual_test.py discover https://context7.com
-```
-
-**✨ New Feature**: The MCP client script now supports **all tools including `discover_website`** with a mock MCP session context that provides full logging and progress reporting!
-
-### Quick Demo
+### Basic Functionality Test
 
 ```bash
-# Test website discovery via MCP client
-uv run python scripts/test_mcp_client.py discover_website https://context7.com
+# Test server version
+uvx legacy-web-mcp --version
 
-# Output includes real-time MCP logging:
-# [INFO] Validated target URL: https://context7.com
-# [INFO] Initialized project context7-com_20250919-052810
-# [INFO] Analyzed robots.txt directives
-# [INFO] Manual crawl discovered 4 URLs
-# ✅ Success! Full JSON result with discovered URLs
+# Test help command
+uvx legacy-web-mcp --help
 ```
 
-See `scripts/README.md` for detailed usage instructions.
+### MCP Integration Test
 
-## Repository Layout
+With Claude Desktop running and configured:
 
+1. **Start a conversation in Claude Desktop**
+2. **Look for the MCP connection indicator** (🔌)
+3. **Try a simple command** like asking Claude to "check the health of the legacy web MCP server"
+
+### Direct Tool Testing
+
+```bash
+# Clone the repository for testing scripts
+git clone https://github.com/hieutrtr/web-discovery-mcp.git
+cd web-discovery-mcp
+
+# Test basic tools
+uv run python scripts/test_mcp_client.py ping
+uv run python scripts/test_mcp_client.py health_check
+
+# Test website discovery
+uv run python scripts/test_mcp_client.py discover_website https://example.com
+
+# Test AI analysis (requires LLM configuration)
+uv run python scripts/test_mcp_client.py analyze_legacy_site https://example.com
 ```
-src/legacy_web_mcp/        # Application source code
-├── mcp/                   # FastMCP bootstrap and MCP tools
-├── discovery/             # Website discovery and crawling engine
-├── storage/              # Project and data persistence
-├── config/               # Configuration management
-└── shared/               # Cross-cutting utilities
 
-docs/                     # Documentation and specifications
-├── architecture.md       # System architecture overview
-├── mcp-context.md        # MCP Context system documentation
-├── stories/              # Epic and story documentation
-└── web_discovery/        # Discovery output examples
+## Advanced Configuration Options
 
-scripts/                  # Manual testing and development tools
-tests/                    # pytest test suites
+### Using Development Version
+
+```json
+{
+  "mcpServers": {
+    "legacy-web-mcp": {
+      "command": "uv",
+      "args": ["run", "legacy-web-mcp"],
+      "cwd": "/path/to/web-discovery-mcp"
+    }
+  }
+}
 ```
 
-## Documentation
+### Using Local Build
 
-Comprehensive documentation is available in the `docs/` directory:
+```json
+{
+  "mcpServers": {
+    "legacy-web-mcp": {
+      "command": "uvx",
+      "args": ["--from", ".", "legacy-web-mcp"],
+      "cwd": "/path/to/web-discovery-mcp"
+    }
+  }
+}
+```
 
-- **[Architecture Overview](docs/architecture.md)** - System design and component interaction
-- **[MCP Context Guide](docs/mcp-context.md)** - Understanding the MCP Context system, testing approaches, and best practices
-- **[Distribution Guide](DISTRIBUTION.md)** - Complete guide for packaging and distributing with uvx
-- **[Story Documentation](docs/stories/)** - Epic and user story specifications
-- **[Discovery Examples](docs/web_discovery/)** - Sample website discovery outputs
+### Using Specific Version
 
-## Configuration
+```json
+{
+  "mcpServers": {
+    "legacy-web-mcp": {
+      "command": "uvx",
+      "args": ["--from", "legacy-web-mcp==0.1.1", "legacy-web-mcp"]
+    }
+  }
+}
+```
 
-### Environment Setup
+## Troubleshooting
 
-1. **Optional**: Copy `.env.template` to `.env` and configure your environment:
+### MCP Connection Issues
+
+**Problem:** Claude Desktop doesn't show MCP connection
+
+**Solutions:**
+1. **Check configuration file location and syntax**
    ```bash
-   # LLM API Keys (for future AI-powered analysis features)
-   OPENAI_API_KEY=your_openai_key_here
-   ANTHROPIC_API_KEY=your_anthropic_key_here
-   GEMINI_API_KEY=your_gemini_key_here
-
-   # Discovery settings
-   DISCOVERY_TIMEOUT=60
-   DISCOVERY_MAX_DEPTH=3
-   OUTPUT_ROOT=docs/web_discovery
+   # Verify file exists and is valid JSON
+   cat ~/.config/claude-desktop/config.json | jq .
    ```
 
-2. **Install Playwright browsers** (optional, for enhanced crawling):
+2. **Test uvx installation**
    ```bash
-   uv run playwright install
+   uvx --version
+   uvx legacy-web-mcp --version
    ```
 
-### Configuration Management
+3. **Check Claude Desktop logs** (if available)
 
-- **Check current configuration**: Use the `show_config` tool to inspect active settings
-  ```bash
-  python scripts/test_mcp_client.py show_config
-  ```
+4. **Restart Claude Desktop completely**
 
-- **Health monitoring**: Get comprehensive system status
-  ```bash
-  python scripts/test_mcp_client.py health_check
-  ```
+### Server Startup Issues
 
-- **Validate dependencies**: Check Playwright browser installations
-  ```bash
-  python scripts/test_mcp_client.py validate_dependencies
-  ```
+**Problem:** Server fails to start
 
-Default settings and configuration documentation are in `docs/stories/1.3.basic-configuration-management.md`.
+**Solutions:**
+1. **Check Python version**
+   ```bash
+   python3 --version  # Should be 3.11+
+   ```
 
-## Website Discovery Features
+2. **Reinstall the package**
+   ```bash
+   uvx uninstall legacy-web-mcp
+   uvx install legacy-web-mcp
+   ```
 
-The server provides comprehensive website discovery capabilities:
+3. **Check for port conflicts**
+   ```bash
+   # Test basic startup
+   uvx legacy-web-mcp --help
+   ```
 
-### Discovery Methods
-- **Sitemap parsing** - Automatically finds and parses XML sitemaps
-- **Robots.txt analysis** - Extracts allowed/disallowed paths and additional sitemaps
-- **Intelligent crawling** - Discovers internal pages, external links, and static assets
+### Browser Dependencies Issues
 
-### Output Formats
-- **JSON inventory** - Machine-readable site structure data
-- **YAML inventory** - Human-readable site structure overview
-- **Project metadata** - Discovery configuration and statistics
+**Problem:** Browser automation fails
 
-### Quick Start Examples
+**Solutions:**
+1. **Install Playwright browsers**
+   ```bash
+   uvx --from legacy-web-mcp playwright install
+   ```
 
-```bash
-# Discover a website structure
-python scripts/test_discovery_direct.py https://example.com
+2. **Validate installation**
+   ```bash
+   uv run python scripts/test_mcp_client.py validate_dependencies
+   ```
 
-# Discover with comprehensive output
-python scripts/manual_test.py discover https://context7.com
-```
+3. **Check system requirements** for Playwright
 
-Discovery results are stored in `docs/web_discovery/` with timestamped project folders containing:
-- `discovery/inventory.json` - Complete site structure
-- `discovery/inventory.yaml` - Human-readable overview
-- `metadata.json` - Project configuration and stats
+### LLM Configuration Issues
 
-## Continuous Integration
+**Problem:** AI analysis tools fail
 
-GitHub Actions workflow in `.github/workflows/ci.yml` runs linting, typing, and tests against Python 3.11 using uv. The workflow keeps dependencies consistent with the local development setup.
+**Solutions:**
+1. **Verify API keys in environment**
+   ```bash
+   # For development setup
+   grep -E "API_KEY|MODEL" .env
+   ```
+
+2. **Test LLM connectivity**
+   ```bash
+   uv run python scripts/test_mcp_client.py test_llm_connectivity
+   ```
+
+3. **Check model configuration**
+   ```bash
+   uv run python scripts/test_mcp_client.py show_config
+   ```
+
+## What It Does
+
+The Legacy Web MCP Server automatically:
+
+- **🔍 Discovers** website structure via sitemaps and intelligent crawling
+- **🧠 Analyzes** legacy applications using AI-powered insights
+- **📊 Documents** findings in comprehensive reports
+- **🔧 Recommends** modernization strategies and technical approaches
+- **📁 Organizes** results in structured project documentation
+
+Perfect for development teams planning legacy application modernization, conducting technical audits, or understanding complex website architectures.
+
+## Getting Help
+
+### Support Resources
+
+- **GitHub Issues:** [Report bugs or request features](https://github.com/hieutrtr/web-discovery-mcp/issues)
+- **PyPI Package:** [View package details](https://pypi.org/project/legacy-web-mcp/)
+- **Documentation:** Check the `docs/` directory for detailed guides
+
+### Common Questions
+
+**Q: Do I need to install Python separately?**
+A: No, `uvx` manages Python environments automatically.
+
+**Q: Can I use this with other MCP clients?**
+A: Yes, any MCP-compatible client should work.
+
+**Q: Do I need LLM API keys to use basic features?**
+A: No, website discovery works without LLM configuration. AI analysis features require API keys.
+
+**Q: How do I update to a newer version?**
+A: Run `uvx install --force legacy-web-mcp` or use `uvx` directly which always uses the latest version.
+
+## Next Steps
+
+After successful installation:
+
+1. **Try basic website discovery** with Claude Desktop
+2. **Configure LLM providers** for AI-powered analysis
+3. **Explore the available tools** in the MCP interface
+4. **Check the documentation** for advanced usage patterns
+
+Happy analyzing! 🚀
 
 ## License
 
