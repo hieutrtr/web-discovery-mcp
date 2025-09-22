@@ -12,6 +12,7 @@ Examples:
     python scripts/test_mcp_client.py health_check
     python scripts/test_mcp_client.py show_config
     python scripts/test_mcp_client.py discover_website https://example.com
+    python scripts/test_mcp_client.py analyze_legacy_site https://example.com
     python scripts/test_mcp_client.py validate_dependencies
 """
 
@@ -148,15 +149,21 @@ class SimpleMCPClient:
         print("\n" + "=" * 50)
         print("✅ MCP server context created - all tools can be called directly!")
         print("\n📋 All testable tools:")
+        print("  # Basic tools")
         print("  python scripts/test_mcp_client.py ping")
         print("  python scripts/test_mcp_client.py health_check")
         print("  python scripts/test_mcp_client.py show_config")
         print("  python scripts/test_mcp_client.py validate_dependencies")
         print("  python scripts/test_mcp_client.py test_llm_connectivity")
+        print("\n  # Discovery tools")
         print("  python scripts/test_mcp_client.py discover_website https://example.com")
         print("  python scripts/test_mcp_client.py discover_website https://github.com")
         print("  python scripts/test_mcp_client.py discover_website https://context7.com")
-        print("\n💡 Note: discover_website now works with mock MCP session context!")
+        print("\n  # Analysis tools (requires LLM configuration)")
+        print("  python scripts/test_mcp_client.py analyze_legacy_site https://example.com")
+        print("  python scripts/test_mcp_client.py intelligent_analyze_site https://example.com")
+        print("  python scripts/test_mcp_client.py analyze_with_recommendations https://example.com")
+        print("\n💡 Note: All tools now work with mock MCP session context!")
 
         print("\nPress Enter to exit...")
         input()
@@ -182,6 +189,12 @@ async def main():
         else:
             # Handle common single-argument tools
             if tool_name == "discover_website":
+                args["url"] = arg
+            elif tool_name == "analyze_legacy_site":
+                args["url"] = arg
+            elif tool_name == "intelligent_analyze_site":
+                args["url"] = arg
+            elif tool_name == "analyze_with_recommendations":
                 args["url"] = arg
             else:
                 print(f"Unknown argument format: {arg}")

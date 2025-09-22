@@ -1,12 +1,22 @@
 [project]
 name = "legacy-web-mcp"
-version = "0.1.0"
-description = "Legacy Web Application Analysis MCP server"
+version = "0.1.1"
+description = "AI-powered legacy web application analysis and documentation generation via MCP"
 readme = "README.md"
 requires-python = ">=3.11"
-authors = [{ name = "Legacy Web MCP Team" }]
-license = { text = "MIT" }
-keywords = ["mcp", "fastmcp", "legacy", "web", "analysis"]
+authors = [{ name = "Legacy Web MCP Team", email = "legacy-web-mcp@example.com" }]
+license = "MIT"
+keywords = ["mcp", "fastmcp", "legacy", "web", "analysis", "ai", "automation", "documentation"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Documentation",
+    "Topic :: Internet :: WWW/HTTP :: Browsers",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
 dependencies = [
     "fastmcp==2.12.0",
     "playwright==1.55.0",
@@ -16,6 +26,12 @@ dependencies = [
     "tenacity==9.0.0",
     "pyyaml==6.0.2",
 ]
+
+[project.urls]
+Homepage = "https://github.com/hieutrtr//web-discovery-mcp"
+Repository = "https://github.com/hieutrtr//web-discovery-mcp"
+Documentation = "https://github.com/hieutrtr/web-discovery-mcp/docs"
+Issues = "https://github.com/hieutrtr//web-discovery-mcp/issues"
 
 [project.optional-dependencies]
 dev = [
@@ -28,7 +44,7 @@ dev = [
 
 [project.scripts]
 legacy-web-mcp = "legacy_web_mcp.cli:main"
-legacy-web-mcp-stdio = "legacy_web_mcp.mcp.server:run"
+legacy-web-mcp-server = "legacy_web_mcp.mcp.server:run"
 
 [build-system]
 requires = ["setuptools>=68", "wheel"]

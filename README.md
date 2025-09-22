@@ -12,16 +12,58 @@ Legacy Web MCP Server implements the Model Context Protocol (MCP) to power autom
 
 ### Installation
 
+#### Option 1: Development Installation (uv)
+
 ```bash
 uv sync
 ```
 
 The command creates a virtual environment under `.venv/` and installs runtime and development dependencies.
 
+#### Option 2: Direct Execution (uvx)
+
+Run the MCP server directly without installation using `uvx`:
+
+```bash
+# Install uv/uvx if not already installed
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Run directly from GitHub repository
+uvx --from git+https://github.com/your-username/web-discovery-mcp-claude-1.git legacy-web-mcp
+
+# Or run locally from project directory
+uvx --from . legacy-web-mcp
+```
+
+#### Option 3: PyPI Installation (Recommended for End Users)
+
+```bash
+# Install and run from PyPI (when published)
+uvx legacy-web-mcp
+
+# Or install to use in scripts
+pip install legacy-web-mcp
+```
+
 ### Running the Server
+
+#### Development Mode (with uv)
 
 ```bash
 uv run legacy-web-mcp
+```
+
+#### Direct Execution (with uvx)
+
+```bash
+# From GitHub
+uvx --from git+https://github.com/your-username/web-discovery-mcp-claude-1.git legacy-web-mcp
+
+# From local directory
+uvx --from . legacy-web-mcp
+
+# Using FastMCP CLI (alternative)
+fastmcp run fastmcp.json
 ```
 
 The entry point starts a FastMCP stdio server that provides comprehensive website discovery and analysis tools.
@@ -33,6 +75,69 @@ The entry point starts a FastMCP stdio server that provides comprehensive websit
 - **Testing:** `uv run pytest`
 
 CI runs these same commands on every push via GitHub Actions.
+
+## MCP Client Configuration
+
+To integrate this server with MCP-compatible clients (like Claude Desktop), add the following configuration:
+
+### Claude Desktop Configuration
+
+Add to your Claude Desktop configuration file (`~/.config/claude-desktop/config.json`):
+
+```json
+{
+  "mcpServers": {
+    "legacy-web-mcp": {
+      "command": "uvx",
+      "args": [
+        "--from",
+        "git+https://github.com/your-username/web-discovery-mcp-claude-1.git",
+        "legacy-web-mcp"
+      ]
+    }
+  }
+}
+```
+
+### Alternative Configurations
+
+#### From Local Directory
+```json
+{
+  "mcpServers": {
+    "legacy-web-mcp": {
+      "command": "uvx",
+      "args": ["--from", ".", "legacy-web-mcp"],
+      "cwd": "/path/to/web-discovery-mcp-claude-1"
+    }
+  }
+}
+```
+
+#### Using Development Environment
+```json
+{
+  "mcpServers": {
+    "legacy-web-mcp": {
+      "command": "uv",
+      "args": ["run", "legacy-web-mcp"],
+      "cwd": "/path/to/web-discovery-mcp-claude-1"
+    }
+  }
+}
+```
+
+#### From PyPI (when published)
+```json
+{
+  "mcpServers": {
+    "legacy-web-mcp": {
+      "command": "uvx",
+      "args": ["legacy-web-mcp"]
+    }
+  }
+}
+```
 
 ## Available MCP Tools
 
@@ -117,6 +222,7 @@ Comprehensive documentation is available in the `docs/` directory:
 
 - **[Architecture Overview](docs/architecture.md)** - System design and component interaction
 - **[MCP Context Guide](docs/mcp-context.md)** - Understanding the MCP Context system, testing approaches, and best practices
+- **[Distribution Guide](DISTRIBUTION.md)** - Complete guide for packaging and distributing with uvx
 - **[Story Documentation](docs/stories/)** - Epic and user story specifications
 - **[Discovery Examples](docs/web_discovery/)** - Sample website discovery outputs
 
