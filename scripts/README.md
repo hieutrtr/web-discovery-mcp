@@ -563,7 +563,58 @@ python scripts/test_orchestration_with_real_analysis.py
    Reasoning: Simple site with clear structure
 ```
 
-### 16. `test_intelligent_analyze_site_real.py` - Story 6.5 AI-Driven Site Analysis Testing
+### 16. `test_documentation_tools_simple.py` - Story 4.3 Documentation Generation Demo
+
+Simple demonstration script for the documentation generation functionality from Story 4.3, showing how analysis artifacts are transformed into comprehensive project documentation.
+
+**Usage:**
+```bash
+# Show complete documentation generation demo
+python scripts/test_documentation_tools_simple.py demo
+
+# Display sample analysis artifacts
+python scripts/test_documentation_tools_simple.py sample
+
+# Show help information
+python scripts/test_documentation_tools_simple.py help
+```
+
+**What This Demo Shows:**
+- 📄 **Sample Analysis Artifacts** - Realistic ContentSummary and FeatureAnalysis data
+- 📊 **Executive Summary Generation** - Project metrics, complexity assessment, rebuild recommendations
+- 🔍 **Per-Page Analysis** - Combined content summaries and feature analyses with priority scoring
+- 🔗 **API Integration Summary** - Discovered endpoints and data flow documentation
+- 🏗️ **Technical Specifications** - Architecture recommendations and implementation guidance
+- 📋 **Business Logic Documentation** - Workflow and functional requirement extraction
+- 📝 **Structured Markdown** - Professional formatting with TOC, anchor links, and cross-references
+
+**Example Output:**
+```bash
+# Example E-commerce Platform Analysis
+
+## Table of Contents
+1. [Executive Summary](#executive-summary)
+2. [Page Analysis](#page-analysis)
+3. [API Integration Summary](#api-integration-summary)
+4. [Technical Specifications](#technical-specifications)
+5. [Business Logic and Workflows](#business-logic-and-workflows)
+
+## Executive Summary
+**Project Name:** Example E-commerce Platform
+**Total Pages Analyzed:** 1
+**Average Quality Score:** 0.91/1.0
+**Features Identified:** 3
+**API Endpoints Discovered:** 3
+**Estimated Rebuild Effort:** 4-6 weeks
+```
+
+**Key Features Demonstrated:**
+- 🎯 **Quality-First Documentation** - Artifact quality filtering and aggregated metrics
+- 🧩 **Modular Architecture** - Pluggable section generators for different content types
+- 📈 **Production-Ready Implementation** - Complete MCP tool integration with error handling
+- 🔄 **Backward Compatibility** - Full integration with existing Epic 3 infrastructure
+
+### 17. `test_intelligent_analyze_site_real.py` - Story 6.5 AI-Driven Site Analysis Testing
 
 Tests the **AI-driven site analysis workflow** from Story 6.5 with real LLM integration, demonstrating natural language command parsing, intelligent site pattern detection, and adaptive analysis strategies.
 

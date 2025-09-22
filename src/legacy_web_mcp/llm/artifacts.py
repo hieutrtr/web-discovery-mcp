@@ -20,8 +20,8 @@ from pydantic import BaseModel, Field
 from legacy_web_mcp.llm.models import (
     ContentSummary,
     FeatureAnalysis,
-    PageAnalysisData,
 )
+from legacy_web_mcp.browser.analysis import PageAnalysisData
 from legacy_web_mcp.llm.quality import QualityMetrics, ValidationResult, AnalysisError
 
 _logger = structlog.get_logger(__name__)

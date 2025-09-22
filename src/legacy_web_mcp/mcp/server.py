@@ -68,6 +68,10 @@ def create_mcp() -> FastMCP:
     # Register debugging tools for Story 3.6
     from . import debugging_tools
     debugging_tools.register(mcp)
+
+    # Register documentation tools for Story 4.3
+    from . import documentation_tools
+    documentation_tools.register(mcp)
     
     return mcp
 
