@@ -1,0 +1,24 @@
+{
+  "project_name": "ModernShop E-commerce Rebuild",
+  "website_url": "https://modernshop.example.com",
+  "analysis_start_date": "2025-09-22T08:33:42.277241",
+  "last_update_date": "2025-09-22T08:35:53.830000",
+  "total_pages_analyzed": 8,
+  "completed_pages": 8,
+  "failed_pages": 0,
+  "average_quality_score": 0.91875,
+  "analysis_status": "completed",
+  "config_snapshot": {},
+  "pages_analyzed": [
+    "https://modernshop.example.com/checkout",
+    "https://modernshop.example.com/checkout",
+    "https://modernshop.example.com/categories/electronics/audio",
+    "https://modernshop.example.com/categories/electronics/audio",
+    "https://modernshop.example.com/products/premium-wireless-headphones-pro",
+    "https://modernshop.example.com/products/premium-wireless-headphones-pro",
+    "https://modernshop.example.com/",
+    "https://modernshop.example.com/"
+  ],
+  "pages_in_progress": [],
+  "pages_failed": []
+}

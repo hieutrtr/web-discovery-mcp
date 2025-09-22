@@ -72,7 +72,15 @@ def create_mcp() -> FastMCP:
     # Register documentation tools for Story 4.3
     from . import documentation_tools
     documentation_tools.register(mcp)
-    
+
+    # Register file management tools for Story 4.4
+    from . import file_management_tools
+    file_management_tools.register(mcp)
+
+    # Register MCP resources for project documentation access
+    from . import resources
+    resources.register_default_project_resources(mcp)
+
     return mcp
 
 
