@@ -51,8 +51,15 @@ class ProjectArtifactOrganizer:
             project_root: Root directory of the project
             artifact_manager: Optional artifact manager for data access
         """
+        from ..config.settings import load_settings
+
         self.project_root = Path(project_root)
-        self.artifact_manager = artifact_manager or ArtifactManager()
+
+        if artifact_manager is None:
+            settings = load_settings()
+            self.artifact_manager = ArtifactManager(settings=settings)
+        else:
+            self.artifact_manager = artifact_manager
 
         # Define the documentation structure
         self.docs_root = self.project_root / "docs" / "web_discovery"

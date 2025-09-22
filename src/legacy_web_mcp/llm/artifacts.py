@@ -12,8 +12,11 @@ import shutil
 import structlog
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, TYPE_CHECKING
 from uuid import uuid4
+
+if TYPE_CHECKING:
+    from ..config.settings import MCPSettings
 
 from pydantic import BaseModel, Field
 
@@ -62,13 +65,27 @@ class AnalysisArtifact(BaseModel):
 class ArtifactManager:
     """Manages persistence and retrieval of analysis artifacts."""
 
-    def __init__(self, artifacts_dir: str = "artifacts"):
+    def __init__(self, artifacts_dir: str = "artifacts", settings: Optional["MCPSettings"] = None):
         """Initialize artifact manager.
 
         Args:
             artifacts_dir: Directory to store artifacts (relative to current working directory)
+            settings: Optional MCPSettings instance for OUTPUT_ROOT-based configuration
         """
-        self.artifacts_dir = Path(artifacts_dir)
+        from ..config.settings import load_settings
+
+        # If settings provided, use OUTPUT_ROOT-based path, otherwise use provided artifacts_dir
+        if settings is not None:
+            self.artifacts_dir = settings.OUTPUT_ROOT / "artifacts"
+        else:
+            # Try to get global settings for OUTPUT_ROOT integration
+            try:
+                global_settings = load_settings()
+                self.artifacts_dir = global_settings.OUTPUT_ROOT / "artifacts"
+            except Exception:
+                # Fallback to the old behavior if settings unavailable
+                self.artifacts_dir = Path(artifacts_dir)
+        
         self.artifacts_dir.mkdir(exist_ok=True, parents=True)
 
         # Create subdirectories for organization

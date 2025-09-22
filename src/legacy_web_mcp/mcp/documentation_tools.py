@@ -41,7 +41,9 @@ async def generate_project_documentation(
 
         # Initialize components
         config = load_configuration()
-        artifact_manager = ArtifactManager()
+        from ..config.settings import load_settings
+        settings = load_settings()
+        artifact_manager = ArtifactManager(settings=settings)
         assembler = DocumentationAssembler(artifact_manager)
 
         # Use the DocumentationAssembler to generate real documentation
@@ -134,7 +136,9 @@ async def generate_executive_summary(
 
         # Initialize components
         config = load_configuration()
-        artifact_manager = ArtifactManager()
+        from ..config.settings import load_settings
+        settings = load_settings()
+        artifact_manager = ArtifactManager(settings=settings)
         assembler = DocumentationAssembler(artifact_manager)
 
         try:
@@ -216,7 +220,9 @@ async def list_available_artifacts(
 
         # Initialize artifact manager
         config = load_configuration()
-        artifact_manager = ArtifactManager()
+        from ..config.settings import load_settings
+        settings = load_settings()
+        artifact_manager = ArtifactManager(settings=settings)
 
         # Get all artifacts
         artifacts = artifact_manager.list_artifacts()
@@ -285,7 +291,9 @@ async def generate_api_documentation(
 
         # Initialize components
         config = load_configuration()
-        artifact_manager = ArtifactManager()
+        from ..config.settings import load_settings
+        settings = load_settings()
+        artifact_manager = ArtifactManager(settings=settings)
         assembler = DocumentationAssembler(artifact_manager)
 
         try:
@@ -353,7 +361,9 @@ async def validate_documentation_artifacts(
 
         # Initialize artifact manager
         config = load_configuration()
-        artifact_manager = ArtifactManager()
+        from ..config.settings import load_settings
+        settings = load_settings()
+        artifact_manager = ArtifactManager(settings=settings)
 
         # Get all artifacts
         artifacts = artifact_manager.list_artifacts()

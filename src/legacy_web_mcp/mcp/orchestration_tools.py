@@ -507,7 +507,7 @@ class LegacyAnalysisOrchestrator:
             self.current_phase = "planning"
 
             analysis_strategy = await self._create_analysis_strategy(
-                discovery_result, analysis_mode, cost_priority, include_step2
+                discovery_result, analysis_mode, cost_priority, include_step2, url
             )
             self.progress_tracker["completed_phases"].append("planning")
 
@@ -706,6 +706,7 @@ class LegacyAnalysisOrchestrator:
         analysis_mode: AnalysisMode,
         cost_priority: CostPriority,
         include_step2: bool,
+        url: str = "",
     ) -> Dict[str, Any]:
         """Create intelligent analysis strategy based on site characteristics."""
 
@@ -727,6 +728,9 @@ class LegacyAnalysisOrchestrator:
             CostPriority.COST_EFFICIENT: 1,
         }[cost_priority]
 
+        # Get project metadata for documentation generation
+        project_metadata = self.project_store.get_project_metadata(self.project_id)
+        
         return {
             "target_pages": target_pages,
             "analysis_mode": analysis_mode.value,
@@ -736,6 +740,11 @@ class LegacyAnalysisOrchestrator:
             "cost_priority": cost_priority.value,
             "site_characteristics": site_characteristics,
             "batch_size": 3 if cost_priority == CostPriority.COST_EFFICIENT else 1,
+            # Add project information for documentation generation
+            "project_id": self.project_id,
+            "project_name": self.project_id,  # Use project_id as name if no specific name provided
+            "website_url": url,
+            "project_root": str(project_metadata.root_path.parent) if project_metadata else ".",
         }
 
     async def _execute_analysis_pipeline(
@@ -766,14 +775,18 @@ class LegacyAnalysisOrchestrator:
             await asyncio.sleep(5)  # Brief pause for user to review
 
         try:
-            # Get or create project
+            # Get or create project metadata
             project_metadata = self.project_store.get_project_metadata(self.project_id)
             if not project_metadata:
+                # Create new project since domain check was already done at entry point
                 project_metadata = self.project_store.create_project(
                     project_id=self.project_id,
                     website_url=target_pages[0],
                     config={"analysis_type": "orchestrated_workflow", "page_count": len(target_pages)},
                 )
+                await context.info(f"📁 Created new project: {self.project_id}")
+            else:
+                await context.info(f"📂 Using existing project: {self.project_id}")
 
             # Create workflow for page processing
             workflow = SequentialNavigationWorkflow(
@@ -1241,6 +1254,62 @@ class LegacyAnalysisOrchestrator:
             "workflow_id": self.workflow_id,
         }
 
+        # Generate actual documentation artifacts
+        try:
+            # Import the document generation functions
+            from .file_management_tools import organize_project_artifacts, generate_master_analysis_report
+            from .documentation_tools import generate_project_documentation
+
+            # Get project info from strategy
+            project_id = strategy.get("project_id")
+            project_name = strategy.get("project_name", project_id)
+            website_url = strategy.get("website_url", "")
+            project_root = strategy.get("project_root", ".")
+
+            await context.info(f"Generating documentation artifacts for project: {project_name}")
+
+            # Organize project artifacts into proper structure
+            organize_result = await organize_project_artifacts(
+                context=context,
+                project_root=project_root,
+                project_id=project_id,
+                project_name=project_name,
+                website_url=website_url
+            )
+
+            if organize_result.get("status") == "success":
+                await context.info("Successfully organized project artifacts")
+                documentation_summary["artifacts_organized"] = True
+                documentation_summary["organized_artifacts"] = organize_result
+            else:
+                await context.error(f"Failed to organize artifacts: {organize_result.get('error', 'Unknown error')}")
+                documentation_summary["artifacts_organized"] = False
+
+            # Generate master analysis report
+            report_result = await generate_master_analysis_report(
+                context=context,
+                project_root=project_root,
+                project_id=project_id,
+                project_name=project_name,
+                include_technical_specs=True,
+                include_debug_info=False
+            )
+
+            if report_result.get("status") == "success":
+                await context.info(f"Generated master report: {report_result.get('master_report_path')}")
+                documentation_summary["master_report_generated"] = True
+                documentation_summary["master_report_path"] = report_result.get("master_report_path")
+                documentation_summary["report_details"] = report_result
+            else:
+                await context.error(f"Failed to generate master report: {report_result.get('error', 'Unknown error')}")
+                documentation_summary["master_report_generated"] = False
+
+        except Exception as e:
+            await context.error(f"Error during documentation generation: {str(e)}")
+            documentation_summary["documentation_error"] = str(e)
+            documentation_summary["artifacts_organized"] = False
+            documentation_summary["master_report_generated"] = False
+
         return documentation_summary
 
 
@@ -1311,6 +1380,25 @@ def register(mcp: FastMCP) -> None:
                 }
 
             config = load_configuration()
+            
+            # Check for existing projects with same domain to avoid duplicates BEFORE creating orchestrator
+            from urllib.parse import urlparse
+            from ..storage.projects import create_project_store
+            
+            base_domain = urlparse(url).netloc
+            project_store = create_project_store(config)
+            existing_projects = project_store.list_projects()
+            
+            # Look for existing project with same domain
+            final_project_id = project_id
+            for existing_project in existing_projects:
+                if existing_project.domain == base_domain:
+                    final_project_id = existing_project.project_id
+                    await context.info(f"🔄 Reusing existing project: {final_project_id} for domain {base_domain}")
+                    break
+            else:
+                # No existing project found, use provided project_id
+                await context.info(f"📁 Using project ID: {final_project_id} for new analysis of domain {base_domain}")
 
             _logger.info(
                 "orchestrated_legacy_analysis_requested",
@@ -1319,12 +1407,12 @@ def register(mcp: FastMCP) -> None:
                 max_pages=max_pages,
                 include_step2=include_step2,
                 interactive_mode=interactive_mode,
-                project_id=project_id,
+                project_id=final_project_id,
                 cost_priority=cost_priority,
             )
 
-            # Create orchestrator and execute workflow
-            orchestrator = LegacyAnalysisOrchestrator(config, project_id)
+            # Create orchestrator with the resolved project_id
+            orchestrator = LegacyAnalysisOrchestrator(config, final_project_id)
 
             result = await orchestrator.discover_and_analyze_site(
                 context=context,

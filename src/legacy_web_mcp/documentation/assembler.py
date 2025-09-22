@@ -64,7 +64,13 @@ class DocumentationAssembler:
         Args:
             artifact_manager: Optional artifact manager for data access
         """
-        self.artifact_manager = artifact_manager or ArtifactManager()
+        from ..config.settings import load_settings
+
+        if artifact_manager is None:
+            settings = load_settings()
+            self.artifact_manager = ArtifactManager(settings=settings)
+        else:
+            self.artifact_manager = artifact_manager
         self.project_summary: Optional[ProjectSummary] = None
         self.sections: List[DocumentationSection] = []
 

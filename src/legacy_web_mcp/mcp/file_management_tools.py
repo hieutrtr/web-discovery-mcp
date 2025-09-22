@@ -36,7 +36,9 @@ async def setup_project_documentation_structure(
         await context.info(f"Setting up documentation structure for project: {project_name}")
 
         # Initialize organizer
-        artifact_manager = ArtifactManager()
+        from ..config.settings import load_settings
+        settings = load_settings()
+        artifact_manager = ArtifactManager(settings=settings)
         organizer = ProjectArtifactOrganizer(project_root, artifact_manager)
 
         # Setup folder structure
@@ -95,7 +97,9 @@ async def organize_project_artifacts(
         await context.info(f"Organizing artifacts for project: {project_name}")
 
         # Initialize components
-        artifact_manager = ArtifactManager()
+        from ..config.settings import load_settings
+        settings = load_settings()
+        artifact_manager = ArtifactManager(settings=settings)
         organizer = ProjectArtifactOrganizer(project_root, artifact_manager)
 
         # Organize all artifacts
@@ -140,7 +144,9 @@ async def generate_master_analysis_report(
 
         # Initialize components
         config = load_configuration()
-        artifact_manager = ArtifactManager()
+        from ..config.settings import load_settings
+        settings = load_settings()
+        artifact_manager = ArtifactManager(settings=settings)
         assembler = DocumentationAssembler(artifact_manager)
         organizer = ProjectArtifactOrganizer(project_root, artifact_manager)
 
@@ -204,7 +210,9 @@ async def list_project_documentation_files(
         await context.info(f"Listing documentation files for project: {project_root}")
 
         # Initialize organizer
-        artifact_manager = ArtifactManager()
+        from ..config.settings import load_settings
+        settings = load_settings()
+        artifact_manager = ArtifactManager(settings=settings)
         organizer = ProjectArtifactOrganizer(project_root, artifact_manager)
 
         # Get file listing
