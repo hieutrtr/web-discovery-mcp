@@ -455,6 +455,69 @@ class AIWorkflowOrchestrator:
         )
 
 
+def _apply_url_filtering(
+    urls: List[str],
+    include_patterns: Optional[List[str]] = None,
+    exclude_patterns: Optional[List[str]] = None,
+    url_filter_mode: str = "exclude"
+) -> List[str]:
+    """Apply include/exclude pattern filtering to a list of URLs.
+    
+    Args:
+        urls: List of URLs to filter
+        include_patterns: List of glob patterns to include (e.g., ["*.html", "/products/*"])
+        exclude_patterns: List of glob patterns to exclude (e.g., ["*/admin/*", "*.pdf"])
+        url_filter_mode: "include" or "exclude" - determines which patterns take precedence
+        
+    Returns:
+        Filtered list of URLs
+    """
+    import fnmatch
+    from urllib.parse import urlparse
+    
+    if not include_patterns and not exclude_patterns:
+        return urls
+    
+    filtered_urls = []
+    
+    for url in urls:
+        # Parse URL to get path component for pattern matching
+        parsed = urlparse(url)
+        url_path = parsed.path or "/"
+        
+        # Track match status
+        included = False
+        excluded = False
+        
+        # Check include patterns
+        if include_patterns:
+            for pattern in include_patterns:
+                if fnmatch.fnmatch(url_path, pattern) or fnmatch.fnmatch(url, pattern):
+                    included = True
+                    break
+        else:
+            # If no include patterns specified, include by default
+            included = True
+        
+        # Check exclude patterns
+        if exclude_patterns:
+            for pattern in exclude_patterns:
+                if fnmatch.fnmatch(url_path, pattern) or fnmatch.fnmatch(url, pattern):
+                    excluded = True
+                    break
+        
+        # Apply filtering based on mode
+        if url_filter_mode == "include":
+            # Include mode: URL must match include patterns and not match exclude patterns
+            if included and not excluded:
+                filtered_urls.append(url)
+        else:  # exclude mode (default)
+            # Exclude mode: URL must not match exclude patterns (include patterns are secondary)
+            if not excluded and included:
+                filtered_urls.append(url)
+    
+    return filtered_urls
+
 class LegacyAnalysisOrchestrator:
     """Core orchestration class for managing complex analysis workflows."""
 
@@ -481,8 +544,11 @@ class LegacyAnalysisOrchestrator:
         include_step2: bool = True,
         interactive_mode: bool = False,
         cost_priority: CostPriority = CostPriority.BALANCED,
+        include_patterns: Optional[List[str]] = None,
+        exclude_patterns: Optional[List[str]] = None,
+        url_filter_mode: str = "exclude",
     ) -> Dict[str, Any]:
-        """Execute complete legacy site analysis workflow with intelligent orchestration."""
+        """Execute complete legacy site analysis workflow with intelligent orchestration and URL filtering."""
 
         try:
             _logger.info(
@@ -493,13 +559,18 @@ class LegacyAnalysisOrchestrator:
                 max_pages=max_pages,
                 include_step2=include_step2,
                 cost_priority=cost_priority.value,
+                include_patterns=include_patterns,
+                exclude_patterns=exclude_patterns,
+                url_filter_mode=url_filter_mode,
             )
 
-            # Phase 1: Site Discovery with Intelligent Selection
+            # Phase 1: Site Discovery with Intelligent Selection and Filtering
             await context.info(f"🔍 Phase 1: Discovering site structure for {url}")
             self.current_phase = "discovery"
 
-            discovery_result = await self._intelligent_site_discovery(context, url, analysis_mode, max_pages)
+            discovery_result = await self._intelligent_site_discovery(
+                context, url, analysis_mode, max_pages, include_patterns, exclude_patterns, url_filter_mode
+            )
             self.progress_tracker["completed_phases"].append("discovery")
 
             # Phase 2: Analysis Strategy Planning
@@ -544,6 +615,13 @@ class LegacyAnalysisOrchestrator:
                 "analysis_summary": final_results,
                 "pages_analyzed": len(analysis_strategy['target_pages']),
                 "project_id": self.project_id,
+                "filtering_applied": {
+                    "include_patterns": include_patterns,
+                    "exclude_patterns": exclude_patterns,
+                    "url_filter_mode": url_filter_mode,
+                    "original_urls_found": discovery_result.get("total_pages_found", 0),
+                    "filtered_urls_selected": len(analysis_strategy['target_pages']),
+                },
             }
 
         except Exception as e:
@@ -575,9 +653,16 @@ class LegacyAnalysisOrchestrator:
             }
 
     async def _intelligent_site_discovery(
-        self, context: Context, url: str, analysis_mode: AnalysisMode, max_pages: int
+        self, 
+        context: Context, 
+        url: str, 
+        analysis_mode: AnalysisMode, 
+        max_pages: int,
+        include_patterns: Optional[List[str]] = None,
+        exclude_patterns: Optional[List[str]] = None,
+        url_filter_mode: str = "exclude"
     ) -> Dict[str, Any]:
-        """Perform intelligent site discovery with strategic page selection."""
+        """Perform intelligent site discovery with strategic page selection and URL filtering."""
 
         try:
             # Basic site discovery
@@ -602,19 +687,49 @@ class LegacyAnalysisOrchestrator:
             if not all_urls:
                 raise WorkflowPlanningError(f"No URLs discovered for {url}")
 
-            # Intelligent page selection based on analysis mode
-            selected_pages = await self._select_priority_pages(all_urls, site_info, analysis_mode, max_pages)
+            # Apply URL filtering BEFORE priority page selection
+            original_count = len(all_urls)
+            filtered_urls = _apply_url_filtering(
+                all_urls, include_patterns, exclude_patterns, url_filter_mode
+            )
+            
+            # Log filtering results
+            if include_patterns or exclude_patterns:
+                await context.info(
+                    f"🎯 URL Filtering: {original_count} → {len(filtered_urls)} URLs "
+                    f"(mode: {url_filter_mode}, "
+                    f"include: {include_patterns or 'none'}, "
+                    f"exclude: {exclude_patterns or 'none'})"
+                )
+
+            if not filtered_urls:
+                raise WorkflowPlanningError(
+                    f"No URLs remaining after filtering. Original: {original_count}, "
+                    f"Patterns: include={include_patterns}, exclude={exclude_patterns}"
+                )
+
+            # Intelligent page selection based on analysis mode (now on filtered URLs)
+            selected_pages = await self._select_priority_pages(filtered_urls, site_info, analysis_mode, max_pages)
 
             # Estimate analysis cost and complexity
             cost_estimate = self._estimate_analysis_cost(selected_pages, analysis_mode)
 
             return {
-                "total_pages_found": len(all_urls),
+                "total_pages_found": original_count,  # Original count before filtering
+                "filtered_pages_count": len(filtered_urls),  # Count after filtering
                 "selected_pages": selected_pages,
                 "page_count": len(selected_pages),
                 "site_characteristics": site_info,
                 "cost_estimate": cost_estimate,
                 "discovery_method": discovery_data.get("discovery_method", "unknown"),
+                "filtering_summary": {
+                    "original_urls": original_count,
+                    "filtered_urls": len(filtered_urls),
+                    "selected_urls": len(selected_pages),
+                    "include_patterns": include_patterns,
+                    "exclude_patterns": exclude_patterns,
+                    "filter_mode": url_filter_mode,
+                },
             }
 
         except Exception as e:
@@ -623,7 +738,11 @@ class LegacyAnalysisOrchestrator:
     async def _select_priority_pages(
         self, all_urls: List[str], site_info: Dict[str, Any], analysis_mode: AnalysisMode, max_pages: int
     ) -> List[str]:
-        """Select priority pages for analysis based on mode and site characteristics."""
+        """Select priority pages for analysis based on mode and site characteristics.
+        
+        Note: This method works on any list of URLs (pre-filtered or unfiltered).
+        The max_pages limit applies to the provided URL list.
+        """
 
         # Auto-calculate max pages if not specified
         if max_pages == 0:
@@ -1321,19 +1440,23 @@ def register(mcp: FastMCP) -> None:
         context: Context,
         url: str,
         analysis_mode: str = "recommended",
-        max_pages: int = 0,
+        max_pages: int = 10,
         include_step2: bool = True,
         interactive_mode: bool = False,
         project_id: str = "legacy-analysis",
         cost_priority: str = "balanced",
+        include_patterns: Optional[List[str]] = None,
+        exclude_patterns: Optional[List[str]] = None,
+        url_filter_mode: str = "exclude",
     ) -> Dict[str, Any]:
-        """Complete legacy website analysis with intelligent orchestration.
+        """Complete legacy website analysis with intelligent orchestration and URL filtering.
 
         Orchestrates the entire analysis workflow from site discovery to documentation:
         1. Intelligent site discovery with strategic page selection
-        2. Adaptive analysis strategy based on site characteristics
-        3. Coordinated execution of browser automation and LLM analysis
-        4. Result synthesis and comprehensive documentation generation
+        2. URL filtering based on include/exclude patterns
+        3. Adaptive analysis strategy based on site characteristics
+        4. Coordinated execution of browser automation and LLM analysis
+        5. Result synthesis and comprehensive documentation generation
 
         Args:
             url: Target website URL for analysis (required)
@@ -1343,12 +1466,16 @@ def register(mcp: FastMCP) -> None:
             interactive_mode: Enable human validation checkpoints (default: False)
             project_id: Project identifier for organizing results (default: "legacy-analysis")
             cost_priority: Optimize for "speed", "balanced", or "cost_efficient" (default: "balanced")
+            include_patterns: List of glob patterns to include URLs (e.g., ["*.html", "/products/*"])
+            exclude_patterns: List of glob patterns to exclude URLs (e.g., ["*/admin/*", "*.pdf"])
+            url_filter_mode: Filter mode - "include" or "exclude" (default: "exclude")
 
         Returns:
             Complete analysis summary with findings, recommendations, and technical specifications
 
         Features:
             - Intelligent site discovery with priority page selection
+            - Advanced URL filtering with glob patterns
             - Adaptive analysis strategies based on site complexity
             - Real-time progress tracking with human-readable updates
             - Comprehensive error handling and recovery
@@ -1379,6 +1506,15 @@ def register(mcp: FastMCP) -> None:
                     "valid_options": valid_priorities
                 }
 
+            # Validate URL filter mode
+            if url_filter_mode not in ["include", "exclude"]:
+                await context.error(f"Invalid url_filter_mode: {url_filter_mode}. Valid options: ['include', 'exclude']")
+                return {
+                    "status": "error",
+                    "error": f"Invalid url_filter_mode: {url_filter_mode}",
+                    "valid_options": ["include", "exclude"]
+                }
+
             config = load_configuration()
             
             # Check for existing projects with same domain to avoid duplicates BEFORE creating orchestrator
@@ -1400,6 +1536,15 @@ def register(mcp: FastMCP) -> None:
                 # No existing project found, use provided project_id
                 await context.info(f"📁 Using project ID: {final_project_id} for new analysis of domain {base_domain}")
 
+            # Log URL filtering parameters if provided
+            if include_patterns or exclude_patterns:
+                filter_info = f"🎯 URL Filtering: mode={url_filter_mode}"
+                if include_patterns:
+                    filter_info += f", include={include_patterns}"
+                if exclude_patterns:
+                    filter_info += f", exclude={exclude_patterns}"
+                await context.info(filter_info)
+
             _logger.info(
                 "orchestrated_legacy_analysis_requested",
                 url=url,
@@ -1409,6 +1554,9 @@ def register(mcp: FastMCP) -> None:
                 interactive_mode=interactive_mode,
                 project_id=final_project_id,
                 cost_priority=cost_priority,
+                include_patterns=include_patterns,
+                exclude_patterns=exclude_patterns,
+                url_filter_mode=url_filter_mode,
             )
 
             # Create orchestrator with the resolved project_id
@@ -1422,6 +1570,9 @@ def register(mcp: FastMCP) -> None:
                 include_step2=include_step2,
                 interactive_mode=interactive_mode,
                 cost_priority=cost_priority_enum,
+                include_patterns=include_patterns,
+                exclude_patterns=exclude_patterns,
+                url_filter_mode=url_filter_mode,
             )
 
             return result
@@ -1448,8 +1599,11 @@ def register(mcp: FastMCP) -> None:
         context: Context,
         url: str,
         project_id: str = "smart-analysis",
+        include_patterns: Optional[List[str]] = None,
+        exclude_patterns: Optional[List[str]] = None,
+        url_filter_mode: str = "exclude",
     ) -> Dict[str, Any]:
-        """AI-recommended analysis strategy based on automatic site assessment.
+        """AI-recommended analysis strategy based on automatic site assessment with URL filtering.
 
         Performs intelligent site assessment and automatically selects optimal analysis
         parameters based on site characteristics, complexity, and typical use cases.
@@ -1457,30 +1611,52 @@ def register(mcp: FastMCP) -> None:
         Args:
             url: Target website URL for analysis (required)
             project_id: Project identifier for organizing results (default: "smart-analysis")
+            include_patterns: List of glob patterns to include URLs (e.g., ["*.html", "/products/*"])
+            exclude_patterns: List of glob patterns to exclude URLs (e.g., ["*/admin/*", "*.pdf"])
+            url_filter_mode: Filter mode - "include" or "exclude" (default: "exclude")
 
         Returns:
             Complete analysis with AI-selected strategy and recommendations
         """
         try:
+            # Validate URL filter mode
+            if url_filter_mode not in ["include", "exclude"]:
+                await context.error(f"Invalid url_filter_mode: {url_filter_mode}. Valid options: ['include', 'exclude']")
+                return {
+                    "status": "error",
+                    "error": f"Invalid url_filter_mode: {url_filter_mode}",
+                    "valid_options": ["include", "exclude"]
+                }
+
             config = load_configuration()
             orchestrator = LegacyAnalysisOrchestrator(config, project_id)
 
             await context.info(f"🤖 Analyzing {url} with AI-recommended strategy...")
 
-            # Quick discovery to assess site characteristics
+            # Log URL filtering parameters if provided
+            if include_patterns or exclude_patterns:
+                filter_info = f"🎯 URL Filtering: mode={url_filter_mode}"
+                if include_patterns:
+                    filter_info += f", include={include_patterns}"
+                if exclude_patterns:
+                    filter_info += f", exclude={exclude_patterns}"
+                await context.info(filter_info)
+
+            # Quick discovery to assess site characteristics (with filtering)
             discovery_result = await orchestrator._intelligent_site_discovery(
-                context, url, AnalysisMode.QUICK, 5
+                context, url, AnalysisMode.QUICK, 5, include_patterns, exclude_patterns, url_filter_mode
             )
 
             site_info = discovery_result.get("site_characteristics", {})
             total_pages = discovery_result["total_pages_found"]
+            filtered_pages = discovery_result.get("filtered_pages_count", total_pages)
 
-            # AI strategy selection based on site characteristics
-            if total_pages <= 10:
+            # AI strategy selection based on filtered site characteristics
+            if filtered_pages <= 10:
                 recommended_mode = AnalysisMode.COMPREHENSIVE
                 recommended_cost = CostPriority.BALANCED
-                max_pages = total_pages
-            elif total_pages <= 30:
+                max_pages = filtered_pages
+            elif filtered_pages <= 30:
                 recommended_mode = AnalysisMode.RECOMMENDED
                 recommended_cost = CostPriority.BALANCED
                 max_pages = 20
@@ -1491,7 +1667,8 @@ def register(mcp: FastMCP) -> None:
 
             await context.info(
                 f"🎯 AI recommendation: {recommended_mode.value} mode, "
-                f"{recommended_cost.value} cost priority, {max_pages} pages max"
+                f"{recommended_cost.value} cost priority, {max_pages} pages max "
+                f"(from {filtered_pages} filtered URLs)"
             )
 
             # Execute with recommended strategy
@@ -1503,14 +1680,24 @@ def register(mcp: FastMCP) -> None:
                 include_step2=True,
                 interactive_mode=False,
                 cost_priority=recommended_cost,
+                include_patterns=include_patterns,
+                exclude_patterns=exclude_patterns,
+                url_filter_mode=url_filter_mode,
             )
 
             # Add recommendation details to result
             result["ai_recommendations"] = {
                 "selected_mode": recommended_mode.value,
                 "selected_cost_priority": recommended_cost.value,
-                "reasoning": f"Selected based on {total_pages} total pages discovered",
+                "reasoning": f"Selected based on {filtered_pages} filtered pages (from {total_pages} total discovered)",
                 "site_assessment": site_info,
+                "filtering_applied": {
+                    "include_patterns": include_patterns,
+                    "exclude_patterns": exclude_patterns,
+                    "url_filter_mode": url_filter_mode,
+                    "original_pages": total_pages,
+                    "filtered_pages": filtered_pages,
+                },
             }
 
             return result
@@ -1593,8 +1780,11 @@ def register(mcp: FastMCP) -> None:
         url: str,
         user_preferences: Optional[str] = None,
         project_id: str = "ai-analysis",
+        include_patterns: Optional[List[str]] = None,
+        exclude_patterns: Optional[List[str]] = None,
+        url_filter_mode: str = "exclude",
     ) -> Dict[str, Any]:
-        """AI-driven site analysis workflow with natural language orchestration.
+        """AI-driven site analysis workflow with natural language orchestration and URL filtering.
 
         Uses AI to understand your analysis request, detect site patterns, create intelligent
         workflow plans, and synthesize results into actionable insights. Provides conversational
@@ -1606,12 +1796,16 @@ def register(mcp: FastMCP) -> None:
             url: Target website URL for analysis (required)
             user_preferences: Optional JSON string with preferences like budget, timeline, focus areas
             project_id: Project identifier for organizing results (default: "ai-analysis")
+            include_patterns: List of glob patterns to include URLs (e.g., ["*.html", "/products/*"])
+            exclude_patterns: List of glob patterns to exclude URLs (e.g., ["*/admin/*", "*.pdf"])
+            url_filter_mode: Filter mode - "include" or "exclude" (default: "exclude")
 
         Returns:
             Comprehensive analysis with AI-generated insights, recommendations, and actionable next steps
 
         Features:
             - Natural language command parsing and intent recognition
+            - Advanced URL filtering with glob patterns
             - Intelligent site pattern detection (e-commerce, admin, CMS, etc.)
             - AI-driven workflow planning and tool selection
             - Adaptive analysis strategies based on site complexity
@@ -1620,13 +1814,34 @@ def register(mcp: FastMCP) -> None:
             - Learning from analysis patterns to improve future workflows
         """
         try:
+            # Validate URL filter mode
+            if url_filter_mode not in ["include", "exclude"]:
+                await context.error(f"Invalid url_filter_mode: {url_filter_mode}. Valid options: ['include', 'exclude']")
+                return {
+                    "status": "error",
+                    "error": f"Invalid url_filter_mode: {url_filter_mode}",
+                    "valid_options": ["include", "exclude"]
+                }
+
             config = load_configuration()
+
+            # Log URL filtering parameters if provided
+            if include_patterns or exclude_patterns:
+                filter_info = f"🎯 URL Filtering: mode={url_filter_mode}"
+                if include_patterns:
+                    filter_info += f", include={include_patterns}"
+                if exclude_patterns:
+                    filter_info += f", exclude={exclude_patterns}"
+                await context.info(filter_info)
 
             _logger.info(
                 "intelligent_analysis_requested",
                 request=natural_language_request,
                 url=url,
                 project_id=project_id,
+                include_patterns=include_patterns,
+                exclude_patterns=exclude_patterns,
+                url_filter_mode=url_filter_mode,
             )
 
             # Parse user preferences if provided
@@ -1637,13 +1852,21 @@ def register(mcp: FastMCP) -> None:
                 except json.JSONDecodeError:
                     await context.info("⚠️ User preferences format invalid, using defaults")
 
+            # Add URL filtering preferences to the preferences dict
+            if include_patterns or exclude_patterns:
+                preferences["url_filtering"] = {
+                    "include_patterns": include_patterns,
+                    "exclude_patterns": exclude_patterns,
+                    "url_filter_mode": url_filter_mode,
+                }
+
             # Create AI workflow orchestrator
             ai_orchestrator = AIWorkflowOrchestrator(config, project_id)
 
             await context.info(f"🤖 Starting AI-driven analysis for: {url}")
             await context.info(f"📝 Your request: {natural_language_request}")
 
-            # Execute AI-driven analysis
+            # Execute AI-driven analysis with URL filtering
             result = await ai_orchestrator.analyze_with_intelligence(
                 context=context,
                 natural_language_request=natural_language_request,

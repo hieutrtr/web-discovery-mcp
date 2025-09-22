@@ -8,12 +8,21 @@ Usage:
     python scripts/test_mcp_client.py [tool_name] [args...]
 
 Examples:
+    # Basic tools
     python scripts/test_mcp_client.py ping
     python scripts/test_mcp_client.py health_check
     python scripts/test_mcp_client.py show_config
     python scripts/test_mcp_client.py discover_website https://example.com
-    python scripts/test_mcp_client.py analyze_legacy_site https://example.com
     python scripts/test_mcp_client.py validate_dependencies
+
+    # Analysis tools
+    python scripts/test_mcp_client.py analyze_legacy_site https://example.com
+    python scripts/test_mcp_client.py analyze_legacy_site https://example.com max_pages=5 include_step2=false
+
+    # URL filtering examples
+    python scripts/test_mcp_client.py analyze_legacy_site https://example.com include_patterns='*.html,/products/*' url_filter_mode=include
+    python scripts/test_mcp_client.py analyze_legacy_site https://example.com exclude_patterns='*/admin/*,*.pdf,*/test/*' url_filter_mode=exclude
+    python scripts/test_mcp_client.py analyze_with_recommendations https://example.com exclude_patterns='*/debug/*,*/temp/*'
 """
 
 import asyncio
@@ -163,6 +172,10 @@ class SimpleMCPClient:
         print("  python scripts/test_mcp_client.py analyze_legacy_site https://example.com")
         print("  python scripts/test_mcp_client.py intelligent_analyze_site https://example.com")
         print("  python scripts/test_mcp_client.py analyze_with_recommendations https://example.com")
+        print("\n  # Analysis with URL filtering")
+        print("  python scripts/test_mcp_client.py analyze_legacy_site https://example.com include_patterns='*.html,/products/*' url_filter_mode=include")
+        print("  python scripts/test_mcp_client.py analyze_legacy_site https://example.com exclude_patterns='*/admin/*,*.pdf' url_filter_mode=exclude")
+        print("  python scripts/test_mcp_client.py analyze_with_recommendations https://example.com exclude_patterns='*/test/*,*/debug/*'")
         print("\n💡 Note: All tools now work with mock MCP session context!")
 
         print("\nPress Enter to exit...")
@@ -185,16 +198,21 @@ async def main():
     for arg in sys.argv[2:]:
         if '=' in arg:
             key, value = arg.split('=', 1)
-            args[key] = value
+            # Handle special parsing for list parameters
+            if key in ['include_patterns', 'exclude_patterns']:
+                # Split comma-separated patterns into a list
+                args[key] = [pattern.strip() for pattern in value.split(',')]
+            elif key in ['max_pages']:
+                # Convert to integer
+                args[key] = int(value)
+            elif key in ['include_step2', 'interactive_mode']:
+                # Convert to boolean
+                args[key] = value.lower() in ['true', '1', 'yes', 'on']
+            else:
+                args[key] = value
         else:
-            # Handle common single-argument tools
-            if tool_name == "discover_website":
-                args["url"] = arg
-            elif tool_name == "analyze_legacy_site":
-                args["url"] = arg
-            elif tool_name == "intelligent_analyze_site":
-                args["url"] = arg
-            elif tool_name == "analyze_with_recommendations":
+            # Handle common single-argument tools (URL)
+            if tool_name in ["discover_website", "analyze_legacy_site", "intelligent_analyze_site", "analyze_with_recommendations"]:
                 args["url"] = arg
             else:
                 print(f"Unknown argument format: {arg}")
