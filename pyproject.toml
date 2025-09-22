@@ -1,6 +1,6 @@
 [project]
 name = "legacy-web-mcp"
-version = "0.1.1"
+version = "0.1.2"
 description = "AI-powered legacy web application analysis and documentation generation via MCP"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -23,7 +23,6 @@ dependencies = [
     "aiohttp==3.12.15",
     "pydantic-settings==2.10.1",
     "structlog==25.4.0",
-    "tenacity==9.0.0",
     "pyyaml==6.0.2",
 ]
 

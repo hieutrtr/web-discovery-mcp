@@ -10,7 +10,7 @@ import structlog
 
 from legacy_web_mcp.browser.analysis import PageAnalysisData
 from legacy_web_mcp.llm.engine import LLMEngine
-from legacy_web_mcp.llm.models import ContentSummary, FeatureAnalysis, ContextPayload, PriorityScore, ConsistencyValidation
+from legacy_web_mcp.llm.models import ContentSummary, FeatureAnalysis, ContextPayload, PriorityScore, ConsistencyValidation, LLMMessage, LLMRequest, LLMRequestType, LLMRole
 from legacy_web_mcp.llm.prompts.step2_feature_analysis import (
     FEATURE_ANALYSIS_SYSTEM_PROMPT,
     create_feature_analysis_prompt,
@@ -63,8 +63,6 @@ class FeatureAnalyzer:
 
         try:
             # Create a structured LLM request for JSON parsing
-            from legacy_web_mcp.llm.models import LLMMessage, LLMRequest, LLMRequestType, LLMRole
-
             messages = [
                 LLMMessage(role=LLMRole.SYSTEM, content=FEATURE_ANALYSIS_SYSTEM_PROMPT),
                 LLMMessage(role=LLMRole.USER, content=prompt),
@@ -400,8 +398,6 @@ class FeatureAnalyzer:
         )
 
         try:
-            from legacy_web_mcp.llm.models import LLMMessage, LLMRequest, LLMRequestType, LLMRole
-
             messages = [
                 LLMMessage(role=LLMRole.SYSTEM, content=FEATURE_ANALYSIS_SYSTEM_PROMPT),
                 LLMMessage(role=LLMRole.USER, content=prompt),

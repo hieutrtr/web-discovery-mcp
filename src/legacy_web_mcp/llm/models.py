@@ -246,6 +246,10 @@ class ContentSummary(BaseModel):
         default_factory=list,
         description="Key terms and concepts that define page context"
     )
+    metadata: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Additional metadata including quality metrics and validation results"
+    )
 
 
 class ContextPayload(BaseModel):

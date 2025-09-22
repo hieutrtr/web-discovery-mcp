@@ -10,7 +10,7 @@ import structlog
 
 from legacy_web_mcp.browser.analysis import PageAnalysisData
 from legacy_web_mcp.llm.engine import LLMEngine
-from legacy_web_mcp.llm.models import ContentSummary
+from legacy_web_mcp.llm.models import ContentSummary, LLMMessage, LLMRequest, LLMRequestType, LLMRole
 from legacy_web_mcp.llm.prompts.step1_summarize import (
     CONTENT_SUMMARY_SYSTEM_PROMPT,
     create_content_summary_prompt,
@@ -66,8 +66,6 @@ class ContentSummarizer:
 
         try:
             # Create a structured LLM request for JSON parsing
-            from legacy_web_mcp.llm.models import LLMMessage, LLMRequest, LLMRequestType, LLMRole
-            
             messages = [
                 LLMMessage(role=LLMRole.SYSTEM, content=CONTENT_SUMMARY_SYSTEM_PROMPT),
                 LLMMessage(role=LLMRole.USER, content=prompt),

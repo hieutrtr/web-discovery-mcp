@@ -97,7 +97,21 @@ uvx legacy-web-mcp
   "mcpServers": {
     "legacy-web-mcp": {
       "command": "uvx",
-      "args": ["legacy-web-mcp"]
+      "args": ["legacy-web-mcp"],
+      "env": {
+        "OPENAI_API_KEY": "your_openai_key_here",
+        "ANTHROPIC_API_KEY": "your_anthropic_key_here",
+        "GEMINI_API_KEY": "your_gemini_key_here",
+        "STEP1_MODEL": "gpt-4o-mini",
+        "STEP2_MODEL": "gpt-4o-mini",
+        "FALLBACK_MODEL": "gpt-4o-mini",
+        "OPENAI_CHAT_MODEL": "gpt-4o-mini",
+        "ANTHROPIC_CHAT_MODEL": "claude-3-haiku-20240307",
+        "GEMINI_CHAT_MODEL": "gemini-1.5-flash",
+        "PLAYWRIGHT_HEADLESS": "true",
+        "MAX_CONCURRENT_PAGES": "3",
+        "OUTPUT_ROOT": "docs/web_discovery"
+      }
     }
   }
 }
@@ -114,13 +128,58 @@ uvx legacy-web-mcp
     },
     "legacy-web-mcp": {
       "command": "uvx",
-      "args": ["legacy-web-mcp"]
+      "args": ["legacy-web-mcp"],
+      "env": {
+        "OPENAI_API_KEY": "your_openai_key_here",
+        "ANTHROPIC_API_KEY": "your_anthropic_key_here",
+        "GEMINI_API_KEY": "your_gemini_key_here",
+        "STEP1_MODEL": "gpt-4o-mini",
+        "STEP2_MODEL": "gpt-4o-mini",
+        "FALLBACK_MODEL": "gpt-4o-mini",
+        "OPENAI_CHAT_MODEL": "gpt-4o-mini",
+        "ANTHROPIC_CHAT_MODEL": "claude-3-haiku-20240307",
+        "GEMINI_CHAT_MODEL": "gemini-1.5-flash",
+        "PLAYWRIGHT_HEADLESS": "true",
+        "MAX_CONCURRENT_PAGES": "3",
+        "OUTPUT_ROOT": "docs/web_discovery"
+      }
     }
   }
 }
 ```
 
-### Step 3: Restart Claude Desktop
+### Step 3: Configure Environment Variables
+
+**🔐 Important:** Replace the placeholder values with your actual API keys and desired configuration.
+
+**Security Note:** For better security, you can use environment variable references instead:
+
+```json
+{
+  "mcpServers": {
+    "legacy-web-mcp": {
+      "command": "uvx",
+      "args": ["legacy-web-mcp"],
+      "env": {
+        "OPENAI_API_KEY": "${OPENAI_API_KEY}",
+        "ANTHROPIC_API_KEY": "${ANTHROPIC_API_KEY}",
+        "GEMINI_API_KEY": "${GEMINI_API_KEY}",
+        "STEP1_MODEL": "gpt-4o-mini"
+      }
+    }
+  }
+}
+```
+
+Then set the environment variables in your shell profile:
+
+```bash
+export OPENAI_API_KEY="your_openai_key_here"
+export ANTHROPIC_API_KEY="your_anthropic_key_here"
+export GEMINI_API_KEY="your_gemini_key_here"
+```
+
+### Step 4: Restart Claude Desktop
 
 1. **Quit Claude Desktop completely**
 2. **Restart Claude Desktop**
@@ -165,6 +224,7 @@ MAX_CONCURRENT_PAGES=3
 # Output Directory
 OUTPUT_ROOT=docs/web_discovery
 ```
+
 
 ### Step 3: Install Browser Dependencies (Optional)
 

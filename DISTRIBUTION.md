@@ -105,7 +105,21 @@ Add to `~/.config/claude-desktop/config.json`:
         "--from",
         "git+https://github.com/your-username/web-discovery-mcp-claude-1.git",
         "legacy-web-mcp"
-      ]
+      ],
+      "env": {
+        "OPENAI_API_KEY": "your_openai_key_here",
+        "ANTHROPIC_API_KEY": "your_anthropic_key_here",
+        "GEMINI_API_KEY": "your_gemini_key_here",
+        "STEP1_MODEL": "gpt-4o-mini",
+        "STEP2_MODEL": "gpt-4o-mini",
+        "FALLBACK_MODEL": "gpt-4o-mini",
+        "OPENAI_CHAT_MODEL": "gpt-4o-mini",
+        "ANTHROPIC_CHAT_MODEL": "claude-3-haiku-20240307",
+        "GEMINI_CHAT_MODEL": "gemini-1.5-flash",
+        "PLAYWRIGHT_HEADLESS": "true",
+        "MAX_CONCURRENT_PAGES": "3",
+        "OUTPUT_ROOT": "docs/web_discovery"
+      }
     }
   }
 }
@@ -118,7 +132,16 @@ Add to `~/.config/claude-desktop/config.json`:
   "servers": {
     "legacy-web-mcp": {
       "command": ["uvx", "legacy-web-mcp"],
-      "transport": "stdio"
+      "transport": "stdio",
+      "env": {
+        "OPENAI_API_KEY": "your_openai_key_here",
+        "ANTHROPIC_API_KEY": "your_anthropic_key_here",
+        "GEMINI_API_KEY": "your_gemini_key_here",
+        "STEP1_MODEL": "gpt-4o-mini",
+        "STEP2_MODEL": "gpt-4o-mini",
+        "FALLBACK_MODEL": "gpt-4o-mini",
+        "OUTPUT_ROOT": "docs/web_discovery"
+      }
     }
   }
 }
@@ -216,6 +239,32 @@ uvx --from . python -c "import pkg_resources; print([d.project_name for d in pkg
 - Never include API keys in the package
 - Use environment variables for configuration
 - Document required environment setup
+
+### Environment Variable Security
+
+**⚠️ Important Security Notes:**
+
+1. **Never commit API keys** to version control
+2. **Use secure storage** for API keys in production:
+   - macOS: Keychain Access
+   - Windows: Windows Credential Store
+   - Linux: Secret Service API or encrypted files
+3. **Alternative to hardcoded values** in MCP config:
+   ```json
+   {
+     "mcpServers": {
+       "legacy-web-mcp": {
+         "command": "uvx",
+         "args": ["legacy-web-mcp"],
+         "env": {
+           "OPENAI_API_KEY": "${OPENAI_API_KEY}",
+           "ANTHROPIC_API_KEY": "${ANTHROPIC_API_KEY}"
+         }
+       }
+     }
+   }
+   ```
+   Then set environment variables in your shell profile.
 
 ## Publishing Checklist
 

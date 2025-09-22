@@ -85,24 +85,32 @@ class QualityMetrics(BaseModel):
     timestamp: datetime = Field(default_factory=datetime.now, description="When metrics were calculated")
 
 
-class AnalysisError(BaseModel):
+class AnalysisError(Exception):
     """Structured error information for analysis failures."""
 
-    error_code: ErrorCode = Field(description="Standardized error code")
-    error_message: str = Field(description="Human-readable error description")
-    error_context: Dict[str, Any] = Field(default_factory=dict, description="Error context for debugging")
-
-    # Error categorization
-    category: str = Field(description="Error category (validation, provider, quality, etc.)")
-    severity: str = Field(description="Error severity (low, medium, high, critical)")
-    recoverable: bool = Field(default=True, description="Whether error is recoverable")
-
-    # Debugging information
-    llm_input: Optional[str] = Field(default=None, description="LLM input that caused error")
-    llm_output: Optional[str] = Field(default=None, description="LLM output that failed validation")
-    stack_trace: Optional[str] = Field(default=None, description="Error stack trace if applicable")
-
-    timestamp: datetime = Field(default_factory=datetime.now, description="When error occurred")
+    def __init__(
+        self,
+        error_code: ErrorCode,
+        error_message: str,
+        error_context: Dict[str, Any] = None,
+        category: str = "analysis",
+        severity: str = "medium",
+        recoverable: bool = True,
+        llm_input: Optional[str] = None,
+        llm_output: Optional[str] = None,
+        stack_trace: Optional[str] = None
+    ):
+        super().__init__(error_message)
+        self.error_code = error_code
+        self.error_message = error_message
+        self.error_context = error_context or {}
+        self.category = category
+        self.severity = severity
+        self.recoverable = recoverable
+        self.llm_input = llm_input
+        self.llm_output = llm_output
+        self.stack_trace = stack_trace
+        self.timestamp = datetime.now()
 
 
 class ResponseValidator:

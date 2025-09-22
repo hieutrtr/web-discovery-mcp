@@ -9,12 +9,6 @@ from datetime import UTC, datetime
 from typing import Any, TypeVar
 
 import structlog
-from tenacity import (
-    AsyncRetrying,
-    retry_if_exception_type,
-    stop_after_attempt,
-    wait_exponential,
-)
 
 from .models import (
     AuthenticationError,
@@ -22,7 +16,7 @@ from .models import (
     LLMProvider,
     ParseError,
     RateLimitError,
-    TimeoutError,
+    TimeoutError as LLMTimeoutError,
     ValidationError,
 )
 
@@ -58,7 +52,7 @@ async def retry_with_exponential_backoff(
 
     def is_retryable_error(exception: Exception) -> bool:
         """Determine if an exception is retryable."""
-        if isinstance(exception, (RateLimitError, TimeoutError)):
+        if isinstance(exception, (RateLimitError, LLMTimeoutError)):
             return True
         if isinstance(exception, (AuthenticationError, ValidationError, ParseError)):
             return False
@@ -69,53 +63,66 @@ async def retry_with_exponential_backoff(
             return True
         return False
 
-    async for attempt in AsyncRetrying(
-        retry=retry_if_exception_type(Exception),
-        stop=stop_after_attempt(config.max_attempts),
-        wait=wait_exponential(
-            multiplier=config.multiplier,
-            min=config.min_wait,
-            max=config.max_wait,
-        ),
-        reraise=True,
-    ):
-        with attempt:
-            try:
-                _logger.debug(
-                    "llm_request_attempt",
-                    provider=provider.value if provider else None,
-                    attempt_number=attempt.retry_state.attempt_number,
-                )
-                result = await func(*args, **kwargs)
-                return result
+    # Use a simpler approach without tenacity AsyncRetrying to avoid the exception issue
+    for attempt in range(config.max_attempts):
+        try:
+            _logger.debug(
+                "llm_request_attempt",
+                provider=provider.value if provider else None,
+                attempt_number=attempt + 1,
+            )
+            result = await func(*args, **kwargs)
+            return result
 
-            except Exception as e:
-                if not is_retryable_error(e):
-                    _logger.error(
-                        "llm_request_failed_permanently",
-                        provider=provider.value if provider else None,
-                        error=str(e),
-                        error_type=type(e).__name__,
-                    )
-                    raise
-
-                _logger.warning(
-                    "llm_request_failed_retrying",
+        except Exception as e:
+            if not is_retryable_error(e):
+                _logger.error(
+                    "llm_request_failed_permanently",
                     provider=provider.value if provider else None,
-                    attempt=attempt.retry_state.attempt_number,
                     error=str(e),
                     error_type=type(e).__name__,
                 )
-
-                if isinstance(e, RateLimitError) and e.retry_after:
-                    _logger.info(
-                        "rate_limit_retry_delay",
-                        provider=provider.value if provider else None,
-                        retry_after=e.retry_after,
-                    )
-                    await asyncio.sleep(e.retry_after)
-
                 raise
+
+            _logger.warning(
+                "llm_request_failed_retrying",
+                provider=provider.value if provider else None,
+                attempt=attempt + 1,
+                error=str(e),
+                error_type=type(e).__name__,
+            )
+
+            # If this was the last attempt, re-raise the exception
+            if attempt == config.max_attempts - 1:
+                _logger.error(
+                    "llm_request_failed_permanently",
+                    provider=provider.value if provider else None,
+                    error=str(e),
+                    error_type=type(e).__name__,
+                )
+                raise
+
+            # Handle rate limiting with custom delay
+            if isinstance(e, RateLimitError) and e.retry_after:
+                _logger.info(
+                    "rate_limit_retry_delay",
+                    provider=provider.value if provider else None,
+                    retry_after=e.retry_after,
+                )
+                await asyncio.sleep(e.retry_after)
+            else:
+                # Exponential backoff
+                wait_time = min(
+                    config.min_wait * (config.multiplier ** attempt),
+                    config.max_wait
+                )
+                _logger.debug(
+                    "exponential_backoff_delay",
+                    provider=provider.value if provider else None,
+                    wait_time=wait_time,
+                    attempt=attempt + 1,
+                )
+                await asyncio.sleep(wait_time)
 
 
 def validate_api_key_format(api_key: str, provider: LLMProvider) -> bool:

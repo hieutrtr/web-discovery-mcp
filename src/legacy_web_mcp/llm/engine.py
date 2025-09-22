@@ -1,6 +1,7 @@
 """Unified LLM engine with multi-provider support and failover."""
 from __future__ import annotations
 
+import json
 from typing import Any
 
 import structlog
@@ -12,10 +13,12 @@ from .models import (
     AuthenticationError,
     CostTracking,
     LLMError,
+    LLMMessage,
     LLMProvider,
     LLMProviderInterface,
     LLMRequest,
     LLMResponse,
+    LLMRole,
     ProviderConfig,
     ProviderHealth,
 )
@@ -227,7 +230,7 @@ class LLMEngine:
                 continue
 
         # All providers in chain failed
-        if last_error:
+        if last_error and type(last_error) == Exception:
             raise last_error
         else:
             raise LLMError("All LLM providers in fallback chain failed")
@@ -417,7 +420,7 @@ class LLMEngine:
                 retry_count += 1
         
         # Should not reach here, but safety fallback
-        if last_error:
+        if last_error and type(last_error) == Exception:
             raise last_error
         else:
             raise LLMError(f"Analysis validation failed after {max_retries} retries")
@@ -450,7 +453,7 @@ class LLMEngine:
             messages=adjusted_messages,
             model=request.model,
             max_tokens=request.max_tokens,
-            temperature=max(0.1, request.temperature - (retry_count * 0.1)),  # Reduce temperature for retries
+            temperature=max(0.1, (request.temperature or 0.7) - (retry_count * 0.1)),  # Reduce temperature for retries
             request_type=request.request_type,
             metadata={
                 **(request.metadata or {}),
