@@ -22,7 +22,7 @@ from .models import (
     ProviderConfig,
     ProviderHealth,
 )
-from .providers import AnthropicProvider, GeminiProvider, OpenAIProvider
+from .providers.langchain_provider import LangChainProvider
 from .utils import HealthMonitor
 
 _logger = structlog.get_logger("legacy_web_mcp.llm.engine")
@@ -45,14 +45,14 @@ class LLMEngine:
         if self._initialized:
             return
 
-        # Initialize OpenAI if API key is provided
+        # Initialize OpenAI with LangChain if API key is provided
         if self.settings.OPENAI_API_KEY:
             try:
-                provider = OpenAIProvider()
+                provider = LangChainProvider(LLMProvider.OPENAI)
                 # Use environment variable for model, with error if not set
                 if not self.settings.OPENAI_CHAT_MODEL:
                     raise ValueError("OPENAI_CHAT_MODEL environment variable must be set when OpenAI API key is provided")
-                
+
                 config = ProviderConfig(
                     provider=LLMProvider.OPENAI,
                     api_key=self.settings.OPENAI_API_KEY.get_secret_value(),
@@ -61,18 +61,18 @@ class LLMEngine:
                 await provider.initialize(config)
                 self.providers[LLMProvider.OPENAI] = provider
                 self.provider_configs[LLMProvider.OPENAI] = config
-                _logger.info("openai_provider_initialized", model=self.settings.OPENAI_CHAT_MODEL)
+                _logger.info("langchain_openai_provider_initialized", model=self.settings.OPENAI_CHAT_MODEL)
             except Exception as e:
-                _logger.warning("openai_provider_init_failed", error=str(e))
+                _logger.warning("langchain_openai_provider_init_failed", error=str(e))
 
-        # Initialize Anthropic if API key is provided
+        # Initialize Anthropic with LangChain if API key is provided
         if self.settings.ANTHROPIC_API_KEY:
             try:
-                provider = AnthropicProvider()
+                provider = LangChainProvider(LLMProvider.ANTHROPIC)
                 # Use environment variable for model, with error if not set
                 if not self.settings.ANTHROPIC_CHAT_MODEL:
                     raise ValueError("ANTHROPIC_CHAT_MODEL environment variable must be set when Anthropic API key is provided")
-                
+
                 config = ProviderConfig(
                     provider=LLMProvider.ANTHROPIC,
                     api_key=self.settings.ANTHROPIC_API_KEY.get_secret_value(),
@@ -81,18 +81,18 @@ class LLMEngine:
                 await provider.initialize(config)
                 self.providers[LLMProvider.ANTHROPIC] = provider
                 self.provider_configs[LLMProvider.ANTHROPIC] = config
-                _logger.info("anthropic_provider_initialized", model=self.settings.ANTHROPIC_CHAT_MODEL)
+                _logger.info("langchain_anthropic_provider_initialized", model=self.settings.ANTHROPIC_CHAT_MODEL)
             except Exception as e:
-                _logger.warning("anthropic_provider_init_failed", error=str(e))
+                _logger.warning("langchain_anthropic_provider_init_failed", error=str(e))
 
-        # Initialize Gemini if API key is provided
+        # Initialize Gemini with LangChain if API key is provided
         if self.settings.GEMINI_API_KEY:
             try:
-                provider = GeminiProvider()
+                provider = LangChainProvider(LLMProvider.GEMINI)
                 # Use environment variable for model, with error if not set
                 if not self.settings.GEMINI_CHAT_MODEL:
                     raise ValueError("GEMINI_CHAT_MODEL environment variable must be set when Gemini API key is provided")
-                
+
                 config = ProviderConfig(
                     provider=LLMProvider.GEMINI,
                     api_key=self.settings.GEMINI_API_KEY.get_secret_value(),
@@ -101,9 +101,9 @@ class LLMEngine:
                 await provider.initialize(config)
                 self.providers[LLMProvider.GEMINI] = provider
                 self.provider_configs[LLMProvider.GEMINI] = config
-                _logger.info("gemini_provider_initialized", model=self.settings.GEMINI_CHAT_MODEL)
+                _logger.info("langchain_gemini_provider_initialized", model=self.settings.GEMINI_CHAT_MODEL)
             except Exception as e:
-                _logger.warning("gemini_provider_init_failed", error=str(e))
+                _logger.warning("langchain_gemini_provider_init_failed", error=str(e))
 
         if not self.providers:
             raise LLMError("No LLM providers were successfully initialized")

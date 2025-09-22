@@ -31,6 +31,9 @@ class LLMRequestType(str, Enum):
     CONTENT_SUMMARY = "content_summary"
     FEATURE_ANALYSIS = "feature_analysis"
     DIAGNOSTIC = "diagnostic"
+    DOCUMENTATION_ENHANCEMENT = "documentation_enhancement"
+    MIGRATION_GUIDANCE = "migration_guidance"
+    TECHNOLOGY_RECOMMENDATIONS = "technology_recommendations"
 
 
 class LLMMessage(BaseModel):
